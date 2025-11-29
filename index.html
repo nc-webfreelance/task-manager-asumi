@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タスク管理</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <meta name="theme-color" content="#ed8936">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="タスク管理">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fef7f0; }
+    .container { max-width: 1152px; margin: 0 auto; }
+    .header { background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .title { font-size: 1.875rem; font-weight: bold; color: #4a4a4a; padding: 1.5rem; }
+    .tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid #ffe4c4; padding: 0 1.5rem; }
+    .tab { padding: 0.75rem 1.5rem; font-weight: 500; cursor: pointer; border: none; background: none; color: #9ca3af; transition: color 0.2s; }
+    .tab:hover { color: #ed8936; }
+    .tab.active { color: #ed8936; border-bottom: 2px solid #ed8936; }
+    .main { padding: 1.5rem; }
+    .btn-primary { background: #ed8936; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .btn-primary:hover { background: #dd6b20; }
+    .btn-secondary { background: #fff4e6; color: #cc7a29; padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .btn-secondary:hover { background: #ebe2d0; }
+    .btn-danger { background: #f5e8e8; color: #d97171; padding: 0.75rem 1.5rem; border-radius: 0.5rem; border: none; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .btn-danger:hover { background: white; }
+    .btn-fab { position: fixed; bottom: 2rem; right: 2rem; width: 3.5rem; height: 3.5rem; background: #ed8936; color: white; border-radius: 50%; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(200,121,65,0.25); display: flex; align-items: center; justify-content: center; transition: background 0.2s; line-height: 1; padding: 0; text-align: center; }
+    .btn-fab:hover { background: #dd6b20; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; }
+    .modal { background: white; border-radius: 0.5rem; box-shadow: 0 20px 25px rgba(0,0,0,0.1); max-width: 56rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal-content { padding: 1.5rem; }
+    .modal-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 1.5rem; color: #4a4a4a; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem; }
+    .form-input, .form-select, .form-textarea { width: 100%; padding: 0.5rem 1rem; border: 1px solid #ffe4c4; border-radius: 0.5rem; font-size: 1rem; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #ed8936; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+    .btn-group { display: flex; gap: 0.75rem; padding-top: 1rem; }
+    .btn-group button { flex: 1; }
+    .task-item { padding: 0.75rem 1rem; border: 1px solid #ffe4c4; border-radius: 0.75rem; background: white; transition: all 0.2s; margin-bottom: 0.5rem; }
+    .task-item:hover { box-shadow: 0 2px 12px rgba(237, 137, 54, 0.12); border-color: #ffd4a3; }
+    .task-item.completed { background: #faf9f7; opacity: 0.65; }
+    .task-content { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .checkbox { width: 1rem; height: 1rem; cursor: pointer; accent-color: #ed8936; }
+    .task-details { flex: 1; }
+    .task-title { font-weight: 500; margin-bottom: 0.5rem; }
+    .task-title.completed { text-decoration: line-through; color: #b8b0a8; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem; }
+    .task-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .badge { padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+    .badge-high { background: #fee2e2; color: #dc2626; font-weight: 600; }
+    .badge-medium { background: #fed7aa; color: #ea580c; font-weight: 600; }
+    .badge-low { background: #fef3c7; color: #ca8a04; font-weight: 600; }
+    .badge-tag { background: #fff4e6; color: #cc7a29; }
+    .badge-tag-セルクエ運営 { background: #e1f5fe; color: #0288d1; }
+    .badge-tag-トナリデザイン { background: #fff9c4; color: #f9a825; }
+    .badge-tag-クライアントワーク { background: #e0f2f1; color: #26a69a; }
+    .badge-tag-その他 { background: #f3e5f5; color: #ab47bc; }
+    .search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #ffe4c4; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; }
+    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .view-mode-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .calendar { background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+    .calendar-nav-header { flex-shrink: 0; background: white; }
+    .calendar-scroll-area { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .calendar-content { min-width: 800px; display: flex; flex-direction: column; }
+    .calendar-header { padding: 1rem; border-bottom: 1px solid #ffe4c4; display: flex; justify-content: space-between; align-items: center; }
+    .calendar-nav { padding: 0.5rem; border: none; background: none; cursor: pointer; border-radius: 0.5rem; transition: background 0.2s; font-size: 1.5rem; color: #ed8936; }
+    .calendar-nav:hover { background: #fffaf0; }
+    .calendar-title { font-size: 1.25rem; font-weight: bold; color: #4a4a4a; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
+    .calendar-weekday-header { border-bottom: 1px solid #ffe4c4; }
+    .calendar-day-header { padding: 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 500; color: #9ca3af; background: white; }
+    .calendar-cell { min-height: 120px; padding: 0.5rem; border: 1px solid #ffe4c4; cursor: pointer; transition: background 0.2s; background: white; overflow: hidden; }
+    .calendar-cell:hover { background: #fffaf0; }
+    .calendar-cell.other-month { background: #faf9f7; color: #b8b0a8; }
+    .calendar-cell.today { border: 2px solid #ed8936; box-shadow: inset 0 0 0 1px #ed8936; }
+    .calendar-cell-content { display: flex; justify-content: space-between; }
+    .calendar-date { font-size: 0.875rem; font-weight: 500; }
+    .calendar-date.today { color: #ed8936; }
+    .calendar-badge { background: #ed8936; color: white; font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 9999px; }
+    .empty-state { text-align: center; padding: 3rem; color: #b8b0a8; }
+    .required { color: #d97171; }
+    .drop-indicator { height: 3px; background: #ed8936; margin: 0; transition: all 0.2s; box-shadow: 0 0 10px rgba(237, 137, 54, 0.6); border-radius: 2px; }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      .container { max-width: 100%; }
+      .title { font-size: 1.5rem; padding: 1rem; }
+      .tabs { padding: 0 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .tab { padding: 0.5rem 1rem; font-size: 0.875rem; white-space: nowrap; }
+      .main { padding: 1rem; }
+      .modal { max-width: 95%; margin: 0.5rem; }
+      .modal-content { padding: 1rem; }
+      .btn-fab { bottom: 1rem; right: 1rem; width: 3rem; height: 3rem; font-size: 1.25rem; line-height: 1; }
+      .filters { grid-template-columns: 1fr; gap: 0.75rem; }
+      .calendar-grid { font-size: 0.75rem; }
+      .calendar-cell { min-height: 90px; padding: 0.25rem; font-size: 0.7rem; }
+      .calendar-date { font-size: 0.75rem; }
+      .calendar-badge { font-size: 0.65rem; padding: 0.2rem 0.4rem; }
+      .badge { font-size: 0.65rem; padding: 0.2rem 0.4rem; }
+      .form-group { margin-bottom: 1rem; }
+      .btn-group { flex-direction: column; }
+      .btn-group button { width: 100%; }
+    }
+    
+    /* モバイル用コンテンツは通常非表示 */
+    .task-mobile-content { display: none; }
+    
+    @media (max-width: 900px) {
+      .task-list-header { display: none !important; }
+      
+      /* PC用要素を非表示 */
+      .task-pc-only { display: none !important; }
+      
+      /* モバイル用コンテンツを表示 */
+      .task-mobile-content { display: block !important; }
+      
+      .task-item { 
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.75rem !important;
+        padding: 1rem !important;
+        align-items: flex-start !important;
+      }
+      
+      .task-item > .task-checkbox {
+        flex-shrink: 0;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.25rem;
+      }
+      
+      .task-mobile-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      /* 予約：スマホではカード表示、PCではテーブル表示 */
+      .mobile-reservations { display: block !important; }
+      .desktop-reservations { display: none !important; }
+      
+      /* リンク：スマホではドラッグハンドル非表示、パディング調整 */
+      .link-drag-handle { display: none !important; }
+      .link-content-wrapper { padding-left: 0 !important; }
+    }
+    
+    @media (max-width: 640px) {
+      .title { font-size: 1.25rem; padding: 0.75rem; }
+      .tab { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+      .main { padding: 0.75rem; }
+      .calendar-cell { min-height: 70px; font-size: 0.65rem; padding: 0.2rem; }
+      .calendar-header { padding: 0.75rem; }
+      .calendar-nav { font-size: 1.25rem; padding: 0.25rem; }
+      .calendar-title { font-size: 1rem; }
+      
+      /* カレンダー横スクロール（年月は固定） */
+      .calendar-nav-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: white;
+      }
+      
+      .calendar-scroll-area {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .modal { 
+        max-width: 100%; 
+        border-radius: 0; 
+        max-height: 100vh;
+        height: 100%;
+        margin: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+      
+      .modal-overlay {
+        padding: 0 !important;
+      }
+      
+      .modal-content {
+        padding: 1rem !important;
+        padding-bottom: 2rem !important;
+      }
+      
+      .search-input {
+        font-size: 0.9rem;
+        padding: 0.6rem 0.8rem;
+      }
+      
+      .form-input, .form-select, .form-textarea {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+      }
+    }
+  </style>
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    // Google Sheets API設定
+    const API_URL = 'https://script.google.com/macros/s/AKfycby-Q6905mb9NlPGUgYPQznxS6Pk3WDdEvMrs-i-4F8qISQK6VJo9JWWOYkHZ_ObuXDNYQ/exec';
+
+    // API通信関数
+    const api = {
+      async get(sheetName) {
+        try {
+          const response = await fetch(`${API_URL}?sheet=${sheetName}`, {
+            method: 'GET',
+            mode: 'cors',
+            redirect: 'follow'
+          });
+          const data = await response.json();
+          return data || [];
+        } catch (error) {
+          console.error(`Error fetching ${sheetName}:`, error);
+          return [];
+        }
+      },
+      
+      async post(action, sheetName, data) {
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            mode: 'cors',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action, sheet: sheetName, data })
+          });
+          return await response.json();
+        } catch (error) {
+          console.error(`Error ${action} ${sheetName}:`, error);
+          return { success: false, error };
+        }
+      }
+    };
+
+    // ローカルストレージ（オフライン対応・キャッシュ用）
+    const storage = {
+      getTasks() {
+        try {
+          const data = localStorage.getItem('tasks');
+          return data ? JSON.parse(data) : [];
+        } catch (error) {
+          return [];
+        }
+      },
+      saveTasks(tasks) {
+        try {
+          localStorage.setItem('tasks', JSON.stringify(tasks));
+        } catch (error) {
+          console.error('Error saving:', error);
+        }
+      },
+    };
+
+    // ローディングコンポーネント
+    const LoadingOverlay = ({ message }) => (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(255,255,255,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}>
+        <div style={{
+          background: 'white',
+          padding: '2rem',
+          borderRadius: '1rem',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #ffe4c4',
+            borderTopColor: '#ed8936',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 1rem'
+          }} />
+          <div style={{ color: '#4a4a4a', fontWeight: 500 }}>{message || '読み込み中...'}</div>
+        </div>
+      </div>
+    );
+
+    // スタイルにスピナーアニメーションを追加
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
+    document.head.appendChild(styleSheet);
+
+    const useTasks = () => {
+      const [tasks, setTasks] = useState([]);
+      const [isLoading, setIsLoading] = useState(true);
+
+      // 初回読み込み
+      useEffect(() => {
+        const loadTasks = async () => {
+          setIsLoading(true);
+          // まずローカルから読み込み（高速表示）
+          const localTasks = storage.getTasks();
+          if (localTasks.length > 0) {
+            setTasks(localTasks);
+          }
+          // その後スプレッドシートから最新データを取得
+          const remoteTasks = await api.get('tasks');
+          if (remoteTasks.length > 0 || localTasks.length === 0) {
+            setTasks(remoteTasks);
+            storage.saveTasks(remoteTasks);
+          }
+          setIsLoading(false);
+        };
+        loadTasks();
+      }, []);
+
+      const createTask = async (taskData) => {
+        const newTask = {
+          ...taskData,
+          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          manualOrder: tasks.length,
+          isDeleted: false,
+        };
+        // 即座にUIに反映
+        setTasks(prev => [...prev, newTask]);
+        storage.saveTasks([...tasks, newTask]);
+        // スプレッドシートに保存
+        await api.post('add', 'tasks', newTask);
+      };
+
+      const updateTask = async (id, updates) => {
+        const updatedTasks = tasks.map(task => task.id === id ? { ...task, ...updates } : task);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        const updatedTask = updatedTasks.find(t => t.id === id);
+        await api.post('update', 'tasks', updatedTask);
+      };
+
+      const deleteTask = async (id) => {
+        const updatedTasks = tasks.map(task => task.id === id ? { ...task, isDeleted: true } : task);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        const updatedTask = updatedTasks.find(t => t.id === id);
+        await api.post('update', 'tasks', updatedTask);
+      };
+
+      const permanentlyDeleteTask = async (id) => {
+        const updatedTasks = tasks.filter(task => task.id !== id);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        await api.post('delete', 'tasks', { id });
+      };
+
+      const permanentlyDeleteAll = async () => {
+        const deletedIds = tasks.filter(t => t.isDeleted).map(t => t.id);
+        const updatedTasks = tasks.filter(task => !task.isDeleted);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        for (const id of deletedIds) {
+          await api.post('delete', 'tasks', { id });
+        }
+      };
+
+      const restoreTask = async (id) => {
+        const updatedTasks = tasks.map(task => task.id === id ? { ...task, isDeleted: false } : task);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        const updatedTask = updatedTasks.find(t => t.id === id);
+        await api.post('update', 'tasks', updatedTask);
+      };
+
+      const toggleComplete = async (id) => {
+        const updatedTasks = tasks.map(task => task.id === id ? { ...task, isCompleted: !task.isCompleted } : task);
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        const updatedTask = updatedTasks.find(t => t.id === id);
+        await api.post('update', 'tasks', updatedTask);
+      };
+
+      const reorderTasks = async (newOrder) => {
+        const updatedTasks = newOrder.map((task, index) => ({
+          ...task,
+          manualOrder: index
+        }));
+        setTasks(updatedTasks);
+        storage.saveTasks(updatedTasks);
+        // 全データを同期
+        await api.post('sync', 'tasks', updatedTasks);
+      };
+
+      return { tasks, isLoading, createTask, updateTask, deleteTask, permanentlyDeleteTask, permanentlyDeleteAll, restoreTask, toggleComplete, reorderTasks };
+    };
+
+    const TabSwitcher = ({ activeTab, onTabChange }) => (
+      <div className="tabs">
+        <button className={`tab ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => onTabChange('calendar')}>
+          カレンダー
+        </button>
+        <button className={`tab ${activeTab === 'list' ? 'active' : ''}`} onClick={() => onTabChange('list')}>
+          タスク一覧
+        </button>
+        <button className={`tab ${activeTab === 'reservations' ? 'active' : ''}`} onClick={() => onTabChange('reservations')}>
+          予約管理
+        </button>
+        <button className={`tab ${activeTab === 'links' ? 'active' : ''}`} onClick={() => onTabChange('links')}>
+          よく使うリンク
+        </button>
+        <button className={`tab ${activeTab === 'deleted' ? 'active' : ''}`} onClick={() => onTabChange('deleted')}>
+          削除済み
+        </button>
+      </div>
+    );
+
+    const TaskModal = ({ isOpen, onClose, onSave, onDelete, task, preselectedDate }) => {
+      const [title, setTitle] = useState('');
+      const [description, setDescription] = useState('');
+      const [workDate, setWorkDate] = useState('');
+      const [workDateMemo, setWorkDateMemo] = useState('');
+      const [isWorkDateUndecided, setIsWorkDateUndecided] = useState(false);
+      const [dueDate, setDueDate] = useState('');
+      const [dueDateMemo, setDueDateMemo] = useState('');
+      const [priority, setPriority] = useState('');
+      const [tag, setTag] = useState('');
+      const [remarks, setRemarks] = useState('');
+      const [isAddingNewTag, setIsAddingNewTag] = useState(false);
+      const [newTagInput, setNewTagInput] = useState('');
+
+      const presetTags = ['セルクエ運営', 'トナリデザイン', 'クライアントワーク', 'その他'];
+
+      useEffect(() => {
+        if (task) {
+          setTitle(task.title);
+          setDescription(task.description || '');
+          setWorkDate(task.workDate);
+          setWorkDateMemo(task.workDateMemo || '');
+          setIsWorkDateUndecided(task.isWorkDateUndecided || false);
+          setDueDate(task.dueDate);
+          setDueDateMemo(task.dueDateMemo || '');
+          setPriority(task.priority || '');
+          setTag(task.tag);
+          setRemarks(task.remarks || task.memo || '');
+        } else {
+          setTitle('');
+          setDescription('');
+          setWorkDate(preselectedDate || '');
+          setWorkDateMemo('');
+          setIsWorkDateUndecided(false);
+          setDueDate('');
+          setDueDateMemo('');
+          setPriority('');
+          setTag('');
+          setRemarks('');
+        }
+        setIsAddingNewTag(false);
+        setNewTagInput('');
+      }, [task, isOpen, preselectedDate]);
+
+      const handleAddNewTag = () => {
+        if (newTagInput.trim()) {
+          setTag(newTagInput.trim());
+          setNewTagInput('');
+          setIsAddingNewTag(false);
+        }
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        // タイトルは任意（空でもOK）
+        onSave({
+          title: title.trim(),
+          description: description.trim(),
+          workDate,
+          workDateMemo: workDateMemo.trim(),
+          isWorkDateUndecided,
+          dueDate,
+          dueDateMemo: dueDateMemo.trim(),
+          priority: priority || '',
+          tag,
+          remarks: remarks.trim(),
+          memo: remarks.trim(),
+          isCompleted: task?.isCompleted || false,
+        });
+        onClose();
+      };
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-content">
+              <h2 className="modal-title">{task ? 'タスク編集' : 'タスク追加'}</h2>
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label className="form-label">タイトル</label>
+                  <textarea 
+                    className="form-textarea" 
+                    rows={2} 
+                    value={title} 
+                    onChange={(e) => setTitle(e.target.value)} 
+                    placeholder="タスクを入力（任意）" 
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">タスク内容</label>
+                  <textarea className="form-textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="タスクの詳細を入力" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">作業日</label>
+                  <div style={{display: 'flex', gap: '0.5rem', marginBottom: '0.5rem'}}>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      value={workDate} 
+                      onChange={(e) => setWorkDate(e.target.value)} 
+                      style={{flex: 1}}
+                      disabled={isWorkDateUndecided}
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={workDateMemo} 
+                      onChange={(e) => setWorkDateMemo(e.target.value)} 
+                      placeholder="18時、午後など"
+                      style={{flex: 0.6}}
+                    />
+                  </div>
+                  <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer'}}>
+                    <input 
+                      type="checkbox" 
+                      checked={isWorkDateUndecided}
+                      onChange={(e) => {
+                        setIsWorkDateUndecided(e.target.checked);
+                        if (e.target.checked) {
+                          setWorkDate('');
+                        }
+                      }}
+                      style={{width: '1rem', height: '1rem', cursor: 'pointer'}}
+                    />
+                    作業日未定
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">締切日</label>
+                  <div style={{display: 'flex', gap: '0.5rem'}}>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      value={dueDate} 
+                      onChange={(e) => setDueDate(e.target.value)} 
+                      style={{flex: 1}}
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={dueDateMemo} 
+                      onChange={(e) => setDueDateMemo(e.target.value)} 
+                      placeholder="18時、午後など"
+                      style={{flex: 0.6}}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">優先度</label>
+                  <select className="form-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                    <option value="">なし</option>
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">タグ</label>
+                  {!isAddingNewTag ? (
+                    <div>
+                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem'}}>
+                        {presetTags.map(presetTag => (
+                          <button
+                            key={presetTag}
+                            type="button"
+                            onClick={() => setTag(presetTag)}
+                            className={tag === presetTag ? 'btn-primary' : 'btn-secondary'}
+                            style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+                          >
+                            {presetTag}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingNewTag(true)}
+                          className="btn-secondary"
+                          style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+                        >
+                          + 新規タグ
+                        </button>
+                      </div>
+                      {tag && !presetTags.includes(tag) && (
+                        <div style={{marginTop: '0.5rem', padding: '0.5rem', background: '#f3f4f6', borderRadius: '0.25rem', fontSize: '0.875rem'}}>
+                          選択中: {tag}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        placeholder="新しいタグ名を入力"
+                        autoFocus
+                      />
+                      <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.5rem'}}>
+                        <button
+                          type="button"
+                          onClick={handleAddNewTag}
+                          className="btn-primary"
+                          style={{flex: 1, padding: '0.5rem'}}
+                        >
+                          追加
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsAddingNewTag(false); setNewTagInput(''); }}
+                          className="btn-secondary"
+                          style={{flex: 1, padding: '0.5rem'}}
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">備考</label>
+                  <textarea className="form-textarea" rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="備考を入力" />
+                </div>
+                <div className="btn-group">
+                  <button type="submit" className="btn-primary">保存</button>
+                  <button type="button" className="btn-secondary" onClick={onClose}>キャンセル</button>
+                </div>
+                {task && onDelete && (
+                  <button type="button" onClick={onDelete} style={{marginTop: '1rem', padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>削除</button>
+                )}
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const TaskItem = ({ task, onToggle, onClick, sortBy }) => {
+      const priorityLabels = { high: '高', medium: '中', low: '低' };
+      const weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+      
+      const getWeekday = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString + 'T00:00:00');
+        return weekdayLabels[date.getDay()];
+      };
+      
+      const formatDateWithWeekday = (dateString) => {
+        if (!dateString) return null;
+        const weekday = getWeekday(dateString);
+        return `${dateString.split('-')[1]}/${dateString.split('-')[2]} (${weekday})`;
+      };
+      
+      const getTagClass = (tag) => {
+        if (tag === 'セルクエ運営') return 'badge-tag-セルクエ運営';
+        if (tag === 'トナリデザイン') return 'badge-tag-トナリデザイン';
+        if (tag === 'クライアントワーク') return 'badge-tag-クライアントワーク';
+        if (tag === 'その他') return 'badge-tag-その他';
+        return 'badge-tag';
+      };
+      
+      // Check if task is today based on sort order
+      const today = new Date();
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const isToday = (sortBy === 'workDate' && task.workDate === todayString) || 
+                      (sortBy === 'dueDate' && task.dueDate === todayString);
+      
+      return (
+        <div 
+          className={`task-item ${task.isCompleted ? 'completed' : ''}`} 
+          onClick={() => onClick()}
+          style={{
+            display: 'grid', 
+            gridTemplateColumns: '35px 50px 110px 110px 110px 1.5fr 1.5fr', 
+            gap: '0.5rem', 
+            alignItems: 'start', 
+            padding: '0.75rem 1rem',
+            border: isToday ? '2px solid #ed8936' : '1px solid #ffe4c4',
+            boxShadow: isToday ? '0 0 0 1px #ed8936' : 'none',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          {/* チェックボックス */}
+          <input 
+            type="checkbox" 
+            className="checkbox task-checkbox" 
+            checked={task.isCompleted} 
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => { 
+              e.stopPropagation(); 
+              onToggle(); 
+            }} 
+            style={{margin: 0, marginTop: '0.125rem'}}
+          />
+          
+          {/* PC用: 優先度 */}
+          <div className="task-priority-col task-pc-only">
+            {task.priority && (
+              <span className={`badge badge-${task.priority}`} style={{textAlign: 'center', padding: '0.25rem 0.5rem', fontSize: '0.75rem'}}>
+                {priorityLabels[task.priority]}
+              </span>
+            )}
+          </div>
+          
+          {/* PC用: 作業日 */}
+          <div className="task-date-col task-pc-only" style={{fontSize: '0.85rem', lineHeight: '1.4'}}>
+            {task.isWorkDateUndecided ? (
+              <div>
+                未定
+                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
+              </div>
+            ) : task.workDate ? (
+              <div>
+                {formatDateWithWeekday(task.workDate)}
+                {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
+              </div>
+            ) : task.workDateMemo ? (
+              <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>{task.workDateMemo}</div>
+            ) : null}
+          </div>
+          
+          {/* PC用: 締切日 */}
+          <div className="task-date-col task-pc-only" style={{fontSize: '0.85rem', lineHeight: '1.4', color: '#dc2626'}}>
+            {task.dueDate ? (
+              <div>
+                {formatDateWithWeekday(task.dueDate)}
+                {task.dueDateMemo && <div style={{fontSize: '0.75rem', color: '#dc2626', marginTop: '0.2rem'}}>{task.dueDateMemo}</div>}
+              </div>
+            ) : task.dueDateMemo ? (
+              <div style={{fontSize: '0.75rem', color: '#dc2626'}}>{task.dueDateMemo}</div>
+            ) : null}
+          </div>
+          
+          {/* PC用: タグ */}
+          <div className="task-tag-col task-pc-only" style={{whiteSpace: 'nowrap'}}>
+            {task.tag && <span className={`badge ${getTagClass(task.tag)}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>{task.tag}</span>}
+          </div>
+          
+          {/* PC用: タイトル・内容 */}
+          <div className="task-content-col task-pc-only" style={{minWidth: 0, marginLeft: '0.75rem'}}>
+            {task.title && (
+              <div className={task.isCompleted ? 'completed' : ''} style={{fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4', marginBottom: '0.2rem'}}>
+                {task.title}
+              </div>
+            )}
+            {task.description && (
+              <div style={{fontSize: '0.8rem', color: '#6b7280', marginTop: task.title ? '0.25rem' : 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4'}}>
+                {task.description}
+              </div>
+            )}
+          </div>
+          
+          {/* PC用: 備考 */}
+          <div className="task-actions-col task-pc-only" style={{minWidth: 0}}>
+            {(task.remarks || task.memo) && (
+              <div style={{fontSize: '0.8rem', color: '#6b7280', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.4'}}>
+                {task.remarks || task.memo}
+              </div>
+            )}
+          </div>
+          
+          {/* モバイル用: モーダルと同じ順序で表示 */}
+          <div className="task-mobile-content">
+            {/* タイトル */}
+            {task.title && (
+              <div className={task.isCompleted ? 'completed' : ''} style={{fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                {task.title}
+              </div>
+            )}
+            {/* 内容 */}
+            {task.description && (
+              <div style={{fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                {task.description}
+              </div>
+            )}
+            {/* 日付 */}
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
+              {(task.isWorkDateUndecided || task.workDate || task.workDateMemo) && (
+                <div style={{color: '#6b7280'}}>
+                  📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatDateWithWeekday(task.workDate) : '')}
+                  {task.workDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.workDateMemo}</span>}
+                </div>
+              )}
+              {(task.dueDate || task.dueDateMemo) && (
+                <div style={{color: '#dc2626'}}>
+                  ⏰ 締切: {task.dueDate ? formatDateWithWeekday(task.dueDate) : ''}
+                  {task.dueDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.dueDateMemo}</span>}
+                </div>
+              )}
+            </div>
+            {/* 優先度とタグ */}
+            {(task.priority || task.tag) && (
+              <div style={{marginBottom: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem'}}>
+                {task.priority && (
+                  <span className={`badge badge-${task.priority}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>
+                    {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+                  </span>
+                )}
+                {task.tag && (
+                  <span className={`badge ${getTagClass(task.tag)}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>{task.tag}</span>
+                )}
+              </div>
+            )}
+            {/* 備考 */}
+            {(task.remarks || task.memo) && (
+              <div style={{
+                fontSize: '0.85rem', 
+                color: '#6b7280', 
+                backgroundColor: '#f9fafb',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '0.5rem',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}>
+                {task.remarks || task.memo}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const TaskList = ({ tasks, onToggleComplete, onTaskClick, onEditTask }) => {
+      // 日付をフォーマット（例: 11/28 (金)）
+      const formatDateWithWeekday = (dateString) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
+      };
+
+      const [sortBy, setSortBy] = useState(() => {
+        try {
+          const saved = localStorage.getItem('sortBy');
+          // 手動が保存されていた場合は作業日順にリセット
+          if (saved === 'manual') {
+            return 'workDate';
+          }
+          return saved || 'workDate';
+        } catch {
+          return 'workDate';
+        }
+      });
+      const [filterBy, setFilterBy] = useState(() => {
+        try {
+          return localStorage.getItem('filterBy') || 'incomplete';
+        } catch {
+          return 'incomplete';
+        }
+      });
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedTag, setSelectedTag] = useState('');
+      const [selectedTask, setSelectedTask] = useState(null);
+      
+      // アコーディオン状態（デフォルトは両方開いた状態）
+      const [isDatedOpen, setIsDatedOpen] = useState(true);
+      const [isUndatedOpen, setIsUndatedOpen] = useState(true);
+      
+      // Save filter state when it changes
+      useEffect(() => {
+        try {
+          localStorage.setItem('filterBy', filterBy);
+        } catch (error) {
+          console.error('Failed to save filterBy:', error);
+        }
+      }, [filterBy]);
+
+      // Save sort order when it changes
+      useEffect(() => {
+        try {
+          localStorage.setItem('sortBy', sortBy);
+        } catch (error) {
+          console.error('Failed to save sortBy:', error);
+        }
+      }, [sortBy]);
+
+      const handleDragStart = (e, task) => {
+        if (sortBy !== 'manual' || !isDragging) return;
+        setDraggedTask(task);
+        e.dataTransfer.effectAllowed = 'move';
+      };
+
+      const handleDragOver = (e, index) => {
+        if (sortBy !== 'manual') return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDropIndicatorIndex(index);
+      };
+
+      const handleDrop = (e, targetTask, dropIndex) => {
+        e.preventDefault();
+        if (sortBy !== 'manual' || !draggedTask || draggedTask.id === targetTask.id) {
+          setDropIndicatorIndex(null);
+          return;
+        }
+
+        const currentList = [...filteredAndSortedTasks];
+        const draggedIndex = currentList.findIndex(t => t.id === draggedTask.id);
+        const targetIndex = currentList.findIndex(t => t.id === targetTask.id);
+
+        currentList.splice(draggedIndex, 1);
+        currentList.splice(targetIndex, 0, draggedTask);
+
+        onReorder(currentList);
+        setDraggedTask(null);
+        setIsDragging(false);
+        setDropIndicatorIndex(null);
+      };
+
+      const handleDragEnd = () => {
+        setDraggedTask(null);
+        setIsDragging(false);
+        setDropIndicatorIndex(null);
+      };
+
+      const handleDragLeave = () => {
+        setDropIndicatorIndex(null);
+      };
+
+      const handleDragHandleMouseDown = (task) => {
+        setIsDragging(true);
+      };
+
+      const presetTags = ['セルクエ運営', 'トナリデザイン', 'クライアントワーク', 'その他'];
+
+      const allTags = useMemo(() => {
+        const customTags = tasks.map(task => task.tag).filter(tag => tag && !presetTags.includes(tag));
+        const uniqueCustomTags = Array.from(new Set(customTags));
+        return [...presetTags, ...uniqueCustomTags];
+      }, [tasks]);
+
+      const filteredAndSortedTasks = useMemo(() => {
+        let result = [...tasks];
+        if (searchQuery) {
+          result = result.filter(task => 
+            task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            task.remarks.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+        if (selectedTag) {
+          result = result.filter(task => task.tag === selectedTag);
+        }
+        if (filterBy === 'completed') {
+          result = result.filter(task => task.isCompleted);
+        } else if (filterBy === 'incomplete') {
+          result = result.filter(task => !task.isCompleted);
+        }
+        result.sort((a, b) => {
+          // 「すべて」の場合は、未完了を上、完了を下に
+          if (filterBy === 'all') {
+            if (a.isCompleted !== b.isCompleted) {
+              return a.isCompleted ? 1 : -1;
+            }
+          }
+          
+          if (sortBy === 'manual') {
+            return (a.manualOrder || 0) - (b.manualOrder || 0);
+          } else if (sortBy === 'priority') {
+            const priorityOrder = { high: 0, medium: 1, low: 2 };
+            const aPriority = a.priority && a.priority !== '' ? priorityOrder[a.priority] : 3;
+            const bPriority = b.priority && b.priority !== '' ? priorityOrder[b.priority] : 3;
+            return aPriority - bPriority;
+          } else if (sortBy === 'workDate') {
+            // 作業日未定のタスクを最後に
+            if (a.isWorkDateUndecided && !b.isWorkDateUndecided) return 1;
+            if (!a.isWorkDateUndecided && b.isWorkDateUndecided) return -1;
+            
+            // 日付がない（空文字列）タスクを最後に
+            const aHasDate = a.workDate && a.workDate !== '';
+            const bHasDate = b.workDate && b.workDate !== '';
+            
+            if (aHasDate && !bHasDate) return -1;
+            if (!aHasDate && bHasDate) return 1;
+            
+            // 日付で比較
+            const dateCompare = (a.workDate || '').localeCompare(b.workDate || '');
+            
+            // 日付が同じ場合は優先度で並べる
+            if (dateCompare === 0) {
+              const priorityOrder = { high: 0, medium: 1, low: 2 };
+              const aPriority = a.priority && a.priority !== '' ? priorityOrder[a.priority] : 3;
+              const bPriority = b.priority && b.priority !== '' ? priorityOrder[b.priority] : 3;
+              return aPriority - bPriority;
+            }
+            
+            return dateCompare;
+          } else {
+            // 締切日でソート
+            // 日付がない（空文字列）タスクを最後に
+            const aHasDate = a.dueDate && a.dueDate !== '';
+            const bHasDate = b.dueDate && b.dueDate !== '';
+            
+            if (aHasDate && !bHasDate) return -1;
+            if (!aHasDate && bHasDate) return 1;
+            
+            const dateCompare = (a.dueDate || '').localeCompare(b.dueDate || '');
+            
+            // 日付が同じ場合は優先度で並べる
+            if (dateCompare === 0) {
+              const priorityOrder = { high: 0, medium: 1, low: 2 };
+              const aPriority = a.priority && a.priority !== '' ? priorityOrder[a.priority] : 3;
+              const bPriority = b.priority && b.priority !== '' ? priorityOrder[b.priority] : 3;
+              return aPriority - bPriority;
+            }
+            
+            return dateCompare;
+          }
+        });
+        return result;
+      }, [tasks, sortBy, filterBy, searchQuery, selectedTag]);
+
+      // 日付あり/なしでタスクを分ける
+      const { datedTasks, undatedTasks } = useMemo(() => {
+        const dated = [];
+        const undated = [];
+        
+        filteredAndSortedTasks.forEach(task => {
+          // 作業日または締切日があるかチェック（作業日未定は「なし」扱い）
+          // 日付メモがある場合も「日付あり」として扱う
+          const hasWorkDate = (task.workDate && task.workDate !== '' && !task.isWorkDateUndecided) || 
+                              (task.workDateMemo && task.workDateMemo !== '');
+          const hasDueDate = (task.dueDate && task.dueDate !== '') || 
+                             (task.dueDateMemo && task.dueDateMemo !== '');
+          
+          if (hasWorkDate || hasDueDate) {
+            dated.push(task);
+          } else {
+            undated.push(task);
+          }
+        });
+        
+        return { datedTasks: dated, undatedTasks: undated };
+      }, [filteredAndSortedTasks]);
+
+      return (
+        <div>
+          <input type="text" className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="タスクを検索..." />
+          <div className="filters">
+            <div className="form-group">
+              <label className="form-label">並び替え</label>
+              <select className="form-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="workDate">作業日順</option>
+                <option value="dueDate">締切日順</option>
+                <option value="priority">優先度順</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">実施状況</label>
+              <select className="form-select" value={filterBy} onChange={(e) => setFilterBy(e.target.value)}>
+                <option value="all">すべて</option>
+                <option value="incomplete">未完了</option>
+                <option value="completed">完了</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">タグ</label>
+              <select className="form-select" value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}>
+                <option value="">すべてのタグ</option>
+                {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+              </select>
+            </div>
+          </div>
+          
+          {/* Header Row */}
+          <div className="task-list-header" style={{display: 'grid', gridTemplateColumns: '40px 60px 120px 120px 140px 1fr 1fr', gap: '0.75rem', padding: '0.5rem 0.75rem', background: '#f3f4f6', borderRadius: '0.5rem', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151'}}>
+            <div></div>
+            <div>優先度</div>
+            <div>作業日</div>
+            <div>締切</div>
+            <div>タグ</div>
+            <div>タスク内容</div>
+            <div>備考</div>
+          </div>
+          
+          <div>
+            {filteredAndSortedTasks.length === 0 ? (
+              <div className="empty-state">タスクがありません</div>
+            ) : (
+              <>
+                {/* 日付設定済みタスク */}
+                {datedTasks.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div 
+                      onClick={() => setIsDatedOpen(!isDatedOpen)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 0.75rem', 
+                        marginBottom: '0.5rem',
+                        color: '#4a4a4a',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <span style={{ 
+                        transition: 'transform 0.2s',
+                        transform: isDatedOpen ? 'rotate(90deg)' : 'rotate(0deg)'
+                      }}>▶</span>
+                      <span>📅</span>
+                      <span>日付設定済み ({datedTasks.length}件)</span>
+                    </div>
+                    {isDatedOpen && datedTasks.map((task, index) => (
+                      <TaskItem 
+                        key={task.id}
+                        task={task} 
+                        onToggle={() => onToggleComplete(task.id)} 
+                        onClick={() => setSelectedTask(task)} 
+                        sortBy={sortBy}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {/* 日付未設定タスク */}
+                {undatedTasks.length > 0 && (
+                  <div>
+                    <div 
+                      onClick={() => setIsUndatedOpen(!isUndatedOpen)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 0.75rem', 
+                        marginBottom: '0.5rem',
+                        color: '#6b7280',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <span style={{ 
+                        transition: 'transform 0.2s',
+                        transform: isUndatedOpen ? 'rotate(90deg)' : 'rotate(0deg)'
+                      }}>▶</span>
+                      <span>📝</span>
+                      <span>日付未設定 ({undatedTasks.length}件)</span>
+                    </div>
+                    {isUndatedOpen && undatedTasks.map((task, index) => (
+                      <TaskItem 
+                        key={task.id}
+                        task={task} 
+                        onToggle={() => onToggleComplete(task.id)} 
+                        onClick={() => setSelectedTask(task)} 
+                        sortBy={sortBy}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          
+          {/* Task Detail Modal */}
+          {selectedTask && (
+            <div className="modal-overlay">
+              <div className="modal" style={{maxWidth: '600px'}}>
+                <div className="modal-content">
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+                    <h2 className="modal-title" style={{marginBottom: 0}}>タスク詳細</h2>
+                    <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => {
+                          onEditTask(selectedTask);
+                          setSelectedTask(null);
+                        }}
+                        style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+                      >
+                        編集
+                      </button>
+                      <button className="calendar-nav" onClick={() => setSelectedTask(null)}>✕</button>
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    padding: '1.25rem', 
+                    border: '1px solid #ffe4c4', 
+                    borderRadius: '0.75rem', 
+                    background: selectedTask.isCompleted ? '#faf9f7' : 'white',
+                    opacity: selectedTask.isCompleted ? 0.7 : 1
+                  }}>
+                    <div style={{display: 'flex', gap: '1rem', alignItems: 'start'}}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedTask.isCompleted} 
+                        onChange={() => {
+                          onToggleComplete(selectedTask.id);
+                          setSelectedTask({...selectedTask, isCompleted: !selectedTask.isCompleted});
+                        }} 
+                        style={{width: '1.5rem', height: '1.5rem', marginTop: '0.125rem', cursor: 'pointer'}}
+                      />
+                      <div style={{flex: 1}}>
+                        <h3 style={{
+                          fontSize: '1.25rem', 
+                          fontWeight: 600, 
+                          marginBottom: '0.5rem',
+                          textDecoration: selectedTask.isCompleted ? 'line-through' : 'none',
+                          color: selectedTask.isCompleted ? '#9ca3af' : '#111827',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>
+                          {selectedTask.title || '(タイトルなし)'}
+                        </h3>
+                        {selectedTask.description && (
+                          <p style={{
+                            fontSize: '0.95rem', 
+                            color: '#4b5563', 
+                            marginBottom: '1rem',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.6'
+                          }}>
+                            {selectedTask.description}
+                          </p>
+                        )}
+                        
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.75rem'}}>
+                          {(selectedTask.workDate || selectedTask.isWorkDateUndecided || selectedTask.workDateMemo) && (
+                            <span>📅 作業: {selectedTask.isWorkDateUndecided ? '未定' : (selectedTask.workDate ? formatDateWithWeekday(selectedTask.workDate) : '')}{selectedTask.workDateMemo ? ` ${selectedTask.workDateMemo}` : ''}</span>
+                          )}
+                          {(selectedTask.dueDate || selectedTask.dueDateMemo) && (
+                            <span style={{color: '#dc2626'}}>⏰ 締切: {selectedTask.dueDate ? formatDateWithWeekday(selectedTask.dueDate) : ''}{selectedTask.dueDateMemo ? ` ${selectedTask.dueDateMemo}` : ''}</span>
+                          )}
+                        </div>
+                        
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem'}}>
+                          {selectedTask.priority && (
+                            <span className={`badge badge-${selectedTask.priority}`} style={{fontSize: '0.8rem', padding: '0.3rem 0.6rem'}}>
+                              {selectedTask.priority === 'high' ? '高' : selectedTask.priority === 'medium' ? '中' : '低'}
+                            </span>
+                          )}
+                          {selectedTask.tag && (
+                            <span className={`badge ${
+                              selectedTask.tag === 'セルクエ運営' ? 'badge-tag-セルクエ運営' :
+                              selectedTask.tag === 'トナリデザイン' ? 'badge-tag-トナリデザイン' :
+                              selectedTask.tag === 'クライアントワーク' ? 'badge-tag-クライアントワーク' :
+                              selectedTask.tag === 'その他' ? 'badge-tag-その他' : 'badge-tag'
+                            }`} style={{fontSize: '0.8rem', padding: '0.3rem 0.6rem'}}>
+                              {selectedTask.tag}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {selectedTask.remarks && (
+                          <div style={{
+                            fontSize: '0.9rem', 
+                            color: '#6b7280', 
+                            backgroundColor: '#f9fafb',
+                            padding: '0.75rem',
+                            borderRadius: '0.5rem',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.5'
+                          }}>
+                            {selectedTask.remarks}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // 日本の祝日を取得する関数
+    const getJapaneseHolidays = (year) => {
+      const holidays = {};
+      
+      // 固定祝日
+      holidays[`${year}-01-01`] = '元日';
+      holidays[`${year}-02-11`] = '建国記念の日';
+      holidays[`${year}-02-23`] = '天皇誕生日';
+      holidays[`${year}-04-29`] = '昭和の日';
+      holidays[`${year}-05-03`] = '憲法記念日';
+      holidays[`${year}-05-04`] = 'みどりの日';
+      holidays[`${year}-05-05`] = 'こどもの日';
+      holidays[`${year}-08-11`] = '山の日';
+      holidays[`${year}-11-03`] = '文化の日';
+      holidays[`${year}-11-23`] = '勤労感謝の日';
+      
+      // 成人の日（1月の第2月曜日）
+      const seijin = new Date(year, 0, 1);
+      seijin.setDate(1 + (8 - seijin.getDay()) % 7 + 7);
+      holidays[`${year}-01-${String(seijin.getDate()).padStart(2, '0')}`] = '成人の日';
+      
+      // 海の日（7月の第3月曜日）
+      const umi = new Date(year, 6, 1);
+      umi.setDate(1 + (8 - umi.getDay()) % 7 + 14);
+      holidays[`${year}-07-${String(umi.getDate()).padStart(2, '0')}`] = '海の日';
+      
+      // 敬老の日（9月の第3月曜日）
+      const keirou = new Date(year, 8, 1);
+      keirou.setDate(1 + (8 - keirou.getDay()) % 7 + 14);
+      holidays[`${year}-09-${String(keirou.getDate()).padStart(2, '0')}`] = '敬老の日';
+      
+      // スポーツの日（10月の第2月曜日）
+      const sports = new Date(year, 9, 1);
+      sports.setDate(1 + (8 - sports.getDay()) % 7 + 7);
+      holidays[`${year}-10-${String(sports.getDate()).padStart(2, '0')}`] = 'スポーツの日';
+      
+      // 春分の日（3月20日または21日）
+      const shunbun = Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+      holidays[`${year}-03-${String(shunbun).padStart(2, '0')}`] = '春分の日';
+      
+      // 秋分の日（9月22日または23日）
+      const shubun = Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+      holidays[`${year}-09-${String(shubun).padStart(2, '0')}`] = '秋分の日';
+      
+      // 振替休日の計算（祝日が日曜日の場合、翌日が振替休日）
+      const addedHolidays = {};
+      Object.keys(holidays).forEach(dateStr => {
+        const d = new Date(dateStr + 'T00:00:00');
+        if (d.getDay() === 0) { // 日曜日
+          const next = new Date(d);
+          next.setDate(next.getDate() + 1);
+          const nextStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+          if (!holidays[nextStr]) {
+            addedHolidays[nextStr] = '振替休日';
+          }
+        }
+      });
+      
+      return { ...holidays, ...addedHolidays };
+    };
+
+    const CalendarCell = ({ date, tasks, viewMode, isCurrentMonth, onClick, dateMemos }) => {
+      // Use local date string to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      
+      const tasksForDate = tasks.filter(task => {
+        const targetDate = viewMode === 'workDate' ? task.workDate : task.dueDate;
+        return targetDate === dateString;
+      });
+      
+      // この日のメモを取得
+      const dayMemo = dateMemos && dateMemos[dateString];
+      
+      const today = new Date();
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const isToday = dateString === todayString;
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+      const isSaturday = dayOfWeek === 6;
+      const isSunday = dayOfWeek === 0;
+      
+      // 祝日判定
+      const holidays = getJapaneseHolidays(year);
+      const isHoliday = holidays[dateString];
+
+      return (
+        <div 
+          className={`calendar-cell ${!isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`} 
+          onClick={onClick}
+          style={{
+            backgroundColor: (isSunday || isHoliday) ? '#fff5f5' : isSaturday ? '#f0f9ff' : undefined
+          }}
+        >
+          <div className="calendar-cell-content">
+            <span 
+              className={`calendar-date ${isToday ? 'today' : ''}`}
+              style={{
+                color: isToday ? undefined : (isSunday || isHoliday) ? '#dc2626' : isSaturday ? '#2563eb' : undefined
+              }}
+            >
+              {date.getDate()}
+            </span>
+            {tasksForDate.length > 0 && <span className="calendar-badge">{tasksForDate.length}</span>}
+          </div>
+          
+          {/* 予定表示（タスクの上） */}
+          {dayMemo && (
+            <div style={{
+              fontSize: '0.7rem',
+              color: '#b45309',
+              background: '#fff9f0',
+              padding: '0.2rem 0.3rem',
+              borderRadius: '0.2rem',
+              marginTop: '0.25rem',
+              marginBottom: '0.25rem',
+              lineHeight: '1.3',
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap',
+              border: '1px solid #ffe4c4'
+            }}>
+              {dayMemo}
+            </div>
+          )}
+          
+          {/* タスク表示 */}
+          <div style={{marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: '1.3'}}>
+            {tasksForDate.slice(0, 3).map(task => {
+              // タイトルがない場合は内容またはタグを表示
+              let displayTitle = task.title;
+              if (!task.title || task.title.trim() === '') {
+                if (task.description) {
+                  displayTitle = task.description;
+                } else if (task.tag) {
+                  displayTitle = `[${task.tag}]`;
+                } else {
+                  displayTitle = '';
+                }
+              }
+              
+              return (
+                <div
+                  key={task.id}
+                  style={{
+                    marginBottom: '0.5rem',
+                    color: task.isCompleted ? '#9ca3af' : '#374151',
+                    textDecoration: task.isCompleted ? 'line-through' : 'none',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    hyphens: 'auto'
+                  }}
+                >
+                  {displayTitle && <div style={{display: 'block', fontWeight: 600}}>• {displayTitle}</div>}
+                  {task.title && task.description && (
+                    <div style={{fontSize: '0.7rem', color: '#6b7280', marginTop: '0.1rem', marginLeft: '0.5rem'}}>
+                      {task.description}
+                    </div>
+                  )}
+                  {task.workDateMemo && (
+                    <div style={{fontSize: '0.7rem', color: '#6b7280', marginTop: '0.1rem', marginLeft: displayTitle ? '0.5rem' : 0}}>
+                      🗓 {task.workDateMemo}
+                    </div>
+                  )}
+                  {task.dueDateMemo && (
+                    <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', marginLeft: displayTitle ? '0.5rem' : 0, fontWeight: 500}}>
+                      ⏰ {task.dueDateMemo}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {tasksForDate.length > 3 && (
+              <div style={{color: '#6b7280', fontSize: '0.7rem', marginTop: '0.25rem'}}>
+                +{tasksForDate.length - 3}件
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const Calendar = ({ tasks, viewMode, onDateClick, dateMemos }) => {
+      const [currentDate, setCurrentDate] = useState(new Date());
+      const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      
+      // Start from Monday (1) instead of Sunday (0)
+      const startDate = new Date(firstDayOfMonth);
+      const firstDay = startDate.getDay();
+      const daysToSubtract = firstDay === 0 ? 6 : firstDay - 1;
+      startDate.setDate(startDate.getDate() - daysToSubtract);
+      
+      const endDate = new Date(lastDayOfMonth);
+      const lastDay = endDate.getDay();
+      const daysToAdd = lastDay === 0 ? 0 : 7 - lastDay;
+      endDate.setDate(endDate.getDate() + daysToAdd);
+
+      const calendarDays = [];
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        calendarDays.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+
+      const handleDateClick = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+        
+        const tasksForDate = tasks.filter(task => {
+          const targetDate = viewMode === 'workDate' ? task.workDate : task.dueDate;
+          return targetDate === dateString;
+        });
+        onDateClick(dateString, tasksForDate);
+      };
+
+      // 年の選択肢（現在年-5年から+5年）
+      const years = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i);
+      const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+      return (
+        <div className="calendar">
+          {/* 年月ナビ（スクロール対象外） */}
+          <div className="calendar-nav-header">
+            <div className="calendar-header">
+              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>←</button>
+              <h2 
+                className="calendar-title" 
+                onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                title="クリックして年月を選択"
+              >
+                {year}年 {month + 1}月 <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>▼</span>
+              </h2>
+              <button className="calendar-nav" onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>→</button>
+            </div>
+            
+            {/* 年月ピッカー */}
+            {showYearMonthPicker && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '1rem',
+                padding: '1rem',
+                background: '#fff9f5',
+                borderRadius: '0.5rem',
+                marginBottom: '0'
+              }}>
+                <select
+                  value={year}
+                  onChange={(e) => {
+                    setCurrentDate(new Date(parseInt(e.target.value), month, 1));
+                  }}
+                  className="form-select"
+                  style={{ width: 'auto', padding: '0.5rem' }}
+                >
+                  {years.map(y => <option key={y} value={y}>{y}年</option>)}
+                </select>
+                <select
+                  value={month + 1}
+                  onChange={(e) => {
+                    setCurrentDate(new Date(year, parseInt(e.target.value) - 1, 1));
+                  }}
+                  className="form-select"
+                  style={{ width: 'auto', padding: '0.5rem' }}
+                >
+                  {months.map(m => <option key={m} value={m}>{m}月</option>)}
+                </select>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setCurrentDate(new Date());
+                    setShowYearMonthPicker(false);
+                  }}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  今月
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowYearMonthPicker(false)}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* 横スクロール領域（曜日と日付） */}
+          <div className="calendar-scroll-area">
+            <div className="calendar-content">
+              {/* 曜日ヘッダー */}
+              <div className="calendar-grid calendar-weekday-header">
+                {['月', '火', '水', '木', '金', '土', '日'].map((day, index) => (
+                  <div 
+                    key={day} 
+                    className="calendar-day-header"
+                    style={{
+                      color: index === 5 ? '#2563eb' : index === 6 ? '#dc2626' : undefined
+                    }}
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              {/* 日付グリッド */}
+              <div className="calendar-grid">
+                {calendarDays.map((date, index) => (
+                  <CalendarCell
+                    key={index}
+                    date={date}
+                    tasks={tasks}
+                    viewMode={viewMode}
+                    isCurrentMonth={date.getMonth() === month}
+                    onClick={() => handleDateClick(date)}
+                    dateMemos={dateMemos}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const CalendarPage = ({ tasks, viewMode, onViewModeChange, onAddTask, onToggleComplete, onTaskClick, dateMemos, onUpdateDateMemo }) => {
+      const [selectedDate, setSelectedDate] = useState(null);
+      const [selectedDateTasks, setSelectedDateTasks] = useState([]);
+      const [editingMemo, setEditingMemo] = useState('');
+
+      const handleDateClick = (date, tasksForDate) => {
+        setSelectedDate(date);
+        setSelectedDateTasks(tasksForDate);
+        setEditingMemo(dateMemos[date] || '');
+      };
+
+      const handleSaveMemo = () => {
+        onUpdateDateMemo(selectedDate, editingMemo);
+      };
+
+      // 日付をフォーマット（例: 11/28 (金)）
+      const formatDateWithWeekday = (dateString) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
+      };
+
+      // 日付をフォーマット（例: 11月28日 (金)）
+      const formatDateTitle = (dateString) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}月${parseInt(d)}日 (${weekdays[date.getDay()]})`;
+      };
+
+      return (
+        <div>
+          <div className="view-mode-buttons">
+            <button className={viewMode === 'workDate' ? 'btn-primary' : 'btn-secondary'} onClick={() => onViewModeChange('workDate')}>
+              作業日で見る
+            </button>
+            <button className={viewMode === 'dueDate' ? 'btn-primary' : 'btn-secondary'} onClick={() => onViewModeChange('dueDate')}>
+              締切日で見る
+            </button>
+          </div>
+          <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} />
+          <button className="btn-fab" onClick={onAddTask}><span style={{display: 'block', marginTop: '-1px'}}>+</span></button>
+          {selectedDate && (
+            <div className="modal-overlay">
+              <div className="modal">
+                <div className="modal-content">
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+                    <h2 className="modal-title" style={{marginBottom: 0}}>{formatDateTitle(selectedDate)}</h2>
+                    <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                      <button 
+                        className="btn-primary" 
+                        onClick={() => {
+                          setSelectedDate(null);
+                          onAddTask(selectedDate);
+                        }}
+                        style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+                      >
+                        + タスク追加
+                      </button>
+                      <button className="calendar-nav" onClick={() => setSelectedDate(null)}>✕</button>
+                    </div>
+                  </div>
+                  
+                  {/* 日付メモ入力エリア */}
+                  <div style={{
+                    background: '#fff9f0',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    marginBottom: '1.5rem',
+                    border: '1px solid #ffe4c4'
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem'}}>
+                      <span>📅</span>
+                      <span style={{fontWeight: 600, color: '#b45309'}}>予定</span>
+                    </div>
+                    <textarea
+                      value={editingMemo}
+                      onChange={(e) => setEditingMemo(e.target.value)}
+                      placeholder="この日の予定を入力..."
+                      className="form-textarea"
+                      rows={5}
+                      style={{
+                        background: 'white',
+                        resize: 'vertical',
+                        fontSize: '0.9rem',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                    />
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem'}}>
+                      <div style={{fontSize: '0.75rem', color: '#9ca3af'}}>
+                        {editingMemo !== (dateMemos[selectedDate] || '') && '※ 変更があります'}
+                      </div>
+                      <button
+                        onClick={handleSaveMemo}
+                        className="btn-primary"
+                        style={{padding: '0.4rem 1rem', fontSize: '0.8rem'}}
+                        disabled={editingMemo === (dateMemos[selectedDate] || '')}
+                      >
+                        保存
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* タスク一覧 */}
+                  <div style={{marginBottom: '0.5rem', fontWeight: 600, color: '#4a4a4a'}}>
+                    📋 タスク ({selectedDateTasks.length}件)
+                  </div>
+                  <div>
+                    {selectedDateTasks.length === 0 ? (
+                      <p className="empty-state">この日のタスクはありません</p>
+                    ) : (
+                      selectedDateTasks.map(task => (
+                        <div 
+                          key={task.id} 
+                          style={{
+                            padding: '1rem', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '0.5rem', 
+                            background: task.isCompleted ? '#f3f4f6' : 'white',
+                            marginBottom: '0.75rem',
+                            opacity: task.isCompleted ? 0.6 : 1
+                          }}
+                        >
+                          <div style={{display: 'flex', gap: '0.75rem', alignItems: 'start'}}>
+                            <input 
+                              type="checkbox" 
+                              checked={task.isCompleted} 
+                              onChange={(e) => { 
+                                e.stopPropagation(); 
+                                onToggleComplete(task.id);
+                                setSelectedDateTasks(prev => 
+                                  prev.map(t => t.id === task.id ? { ...t, isCompleted: !t.isCompleted } : t)
+                                );
+                              }} 
+                              style={{width: '1.25rem', height: '1.25rem', marginTop: '0.25rem', cursor: 'pointer', flexShrink: 0}}
+                            />
+                            <div style={{flex: 1, minWidth: 0}}>
+                              {/* タイトル */}
+                              {task.title && (
+                                <div style={{
+                                  fontSize: '1rem', 
+                                  fontWeight: 600, 
+                                  marginBottom: '0.25rem',
+                                  textDecoration: task.isCompleted ? 'line-through' : 'none',
+                                  color: task.isCompleted ? '#9ca3af' : '#111827',
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word'
+                                }}>
+                                  {task.title}
+                                </div>
+                              )}
+                              {/* 内容 */}
+                              {task.description && (
+                                <div style={{fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                                  {task.description}
+                                </div>
+                              )}
+                              {/* 日付 */}
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
+                                {(task.isWorkDateUndecided || task.workDate || task.workDateMemo) && (
+                                  <div style={{color: '#6b7280'}}>
+                                    📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatDateWithWeekday(task.workDate) : '')}
+                                    {task.workDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.workDateMemo}</span>}
+                                  </div>
+                                )}
+                                {(task.dueDate || task.dueDateMemo) && (
+                                  <div style={{color: '#dc2626'}}>
+                                    ⏰ 締切: {task.dueDate ? formatDateWithWeekday(task.dueDate) : ''}
+                                    {task.dueDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.dueDateMemo}</span>}
+                                  </div>
+                                )}
+                              </div>
+                              {/* 優先度とタグ */}
+                              {(task.priority || task.tag) && (
+                                <div style={{marginBottom: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem'}}>
+                                  {task.priority && (
+                                    <span className={`badge badge-${task.priority}`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>
+                                      {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+                                    </span>
+                                  )}
+                                  {task.tag && (
+                                    <span className={`badge ${
+                                      task.tag === 'セルクエ運営' ? 'badge-tag-セルクエ運営' :
+                                      task.tag === 'トナリデザイン' ? 'badge-tag-トナリデザイン' :
+                                      task.tag === 'クライアントワーク' ? 'badge-tag-クライアントワーク' :
+                                      task.tag === 'その他' ? 'badge-tag-その他' :
+                                      'badge-tag'
+                                    }`} style={{fontSize: '0.75rem', padding: '0.25rem 0.5rem'}}>
+                                      {task.tag}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {/* 備考 */}
+                              {(task.remarks || task.memo) && (
+                                <div style={{
+                                  fontSize: '0.85rem', 
+                                  color: '#6b7280', 
+                                  backgroundColor: '#f9fafb',
+                                  padding: '0.5rem 0.75rem',
+                                  borderRadius: '0.5rem',
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word'
+                                }}>
+                                  {task.remarks || task.memo}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => { 
+                                setSelectedDate(null); 
+                                onTaskClick(task); 
+                              }}
+                              className="btn-secondary"
+                              style={{padding: '0.5rem 1rem', whiteSpace: 'nowrap', flexShrink: 0}}
+                            >
+                              編集
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const ReservationsPage = ({ reservations, setReservations }) => {
+      const [isAddingReservation, setIsAddingReservation] = useState(false);
+      const [editingReservation, setEditingReservation] = useState(null);
+      const [formData, setFormData] = useState({
+        status: '予約済み',
+        date: '',
+        reservationStartHour: '',
+        reservationStartMin: '',
+        reservationEndHour: '',
+        reservationEndMin: '',
+        booth: '',
+        actualStartHour: '',
+        actualStartMin: '',
+        actualEndHour: '',
+        actualEndMin: '',
+        content: '',
+        remarks: ''
+      });
+
+      const statusOptions = ['予約予定', '予約済み', '実施済み', 'キャンセル'];
+      const boothOptions = ['', 'テレフォンブースA', 'テレフォンブースB', 'テレフォンブースC', '4名用会議室', '10名用会議室', '入力'];
+      
+      // 時間と分の選択肢を生成
+      const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+      const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+      const activeReservations = reservations.filter(r => !r.isDeleted);
+
+      // 時間文字列を生成
+      const formatTimeRange = (startH, startM, endH, endM) => {
+        const hasStart = startH && startM;
+        const hasEnd = endH && endM;
+        
+        if (hasStart && hasEnd) {
+          return `${startH}:${startM}~${endH}:${endM}`;
+        } else if (hasStart) {
+          return `${startH}:${startM}~`;
+        } else if (hasEnd) {
+          return `~${endH}:${endM}`;
+        }
+        return '';
+      };
+
+      // 時間文字列をパース
+      const parseTimeRange = (timeStr) => {
+        if (!timeStr) return { startH: '', startM: '', endH: '', endM: '' };
+        
+        // 完全な時間範囲
+        const fullMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*[~～-]\s*(\d{1,2}):(\d{2})/);
+        if (fullMatch) {
+          return {
+            startH: String(parseInt(fullMatch[1])).padStart(2, '0'),
+            startM: String(parseInt(fullMatch[2])).padStart(2, '0'),
+            endH: String(parseInt(fullMatch[3])).padStart(2, '0'),
+            endM: String(parseInt(fullMatch[4])).padStart(2, '0')
+          };
+        }
+        
+        // 開始時間のみ (例: 10:00~)
+        const startOnlyMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*[~～-]/);
+        if (startOnlyMatch) {
+          return {
+            startH: String(parseInt(startOnlyMatch[1])).padStart(2, '0'),
+            startM: String(parseInt(startOnlyMatch[2])).padStart(2, '0'),
+            endH: '',
+            endM: ''
+          };
+        }
+        
+        // 終了時間のみ (例: ~17:00)
+        const endOnlyMatch = timeStr.match(/[~～-]\s*(\d{1,2}):(\d{2})$/);
+        if (endOnlyMatch) {
+          return {
+            startH: '',
+            startM: '',
+            endH: String(parseInt(endOnlyMatch[1])).padStart(2, '0'),
+            endM: String(parseInt(endOnlyMatch[2])).padStart(2, '0')
+          };
+        }
+        
+        return { startH: '', startM: '', endH: '', endM: '' };
+      };
+
+      // 時間の長さを自動計算する関数
+      const calculateDuration = (startH, startM, endH, endM) => {
+        if (!startH || !startM || !endH || !endM) return '';
+        
+        const startHour = parseInt(startH);
+        const startMin = parseInt(startM);
+        const endHour = parseInt(endH);
+        const endMin = parseInt(endM);
+        
+        let totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+        if (totalMinutes < 0) totalMinutes += 24 * 60; // 日をまたぐ場合
+        
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        
+        if (h > 0 && m > 0) return `${h}h${m}m`;
+        if (h > 0) return `${h}h`;
+        if (m > 0) return `${m}m`;
+        return '';
+      };
+
+      const resetForm = () => {
+        setFormData({
+          status: '予約済み',
+          date: '',
+          reservationStartHour: '',
+          reservationStartMin: '',
+          reservationEndHour: '',
+          reservationEndMin: '',
+          booth: '',
+          actualStartHour: '',
+          actualStartMin: '',
+          actualEndHour: '',
+          actualEndMin: '',
+          content: '',
+          remarks: ''
+        });
+      };
+
+      const handleSave = async () => {
+        if (!formData.date) return;
+
+        const reservationTime = formatTimeRange(
+          formData.reservationStartHour, formData.reservationStartMin,
+          formData.reservationEndHour, formData.reservationEndMin
+        );
+        const actualTime = formatTimeRange(
+          formData.actualStartHour, formData.actualStartMin,
+          formData.actualEndHour, formData.actualEndMin
+        );
+
+        const dataToSave = {
+          status: formData.status,
+          date: formData.date,
+          booth: formData.booth,
+          content: formData.content,
+          remarks: formData.remarks,
+          reservationTime,
+          actualTime,
+          duration: calculateDuration(formData.reservationStartHour, formData.reservationStartMin, formData.reservationEndHour, formData.reservationEndMin),
+          actualDuration: calculateDuration(formData.actualStartHour, formData.actualStartMin, formData.actualEndHour, formData.actualEndMin)
+        };
+
+        if (editingReservation) {
+          const updatedReservation = { ...editingReservation, ...dataToSave };
+          const updatedReservations = reservations.map(r => 
+            r.id === editingReservation.id ? updatedReservation : r
+          );
+          setReservations(updatedReservations);
+          localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          await api.post('update', 'reservations', updatedReservation);
+        } else {
+          const newReservation = {
+            id: Date.now().toString(),
+            ...dataToSave,
+            isDeleted: false
+          };
+          const updatedReservations = [...reservations, newReservation];
+          setReservations(updatedReservations);
+          localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          await api.post('add', 'reservations', newReservation);
+        }
+
+        resetForm();
+        setIsAddingReservation(false);
+        setEditingReservation(null);
+      };
+
+      const handleEdit = (reservation) => {
+        setEditingReservation(reservation);
+        const resParsed = parseTimeRange(reservation.reservationTime);
+        const actParsed = parseTimeRange(reservation.actualTime);
+        setFormData({
+          status: reservation.status || '予約済み',
+          date: reservation.date || '',
+          reservationStartHour: resParsed.startH,
+          reservationStartMin: resParsed.startM,
+          reservationEndHour: resParsed.endH,
+          reservationEndMin: resParsed.endM,
+          booth: reservation.booth || '',
+          actualStartHour: actParsed.startH,
+          actualStartMin: actParsed.startM,
+          actualEndHour: actParsed.endH,
+          actualEndMin: actParsed.endM,
+          content: reservation.content || '',
+          remarks: reservation.remarks || ''
+        });
+        setIsAddingReservation(true);
+      };
+
+      const handleDelete = async (id) => {
+        if (confirm('この予約を削除しますか？')) {
+          const updatedReservations = reservations.map(r => r.id === id ? { ...r, isDeleted: true } : r);
+          const updatedReservation = updatedReservations.find(r => r.id === id);
+          setReservations(updatedReservations);
+          localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          await api.post('update', 'reservations', updatedReservation);
+        }
+      };
+
+      const handleCancel = () => {
+        resetForm();
+        setIsAddingReservation(false);
+        setEditingReservation(null);
+      };
+
+      const getStatusStyle = (status) => {
+        switch(status) {
+          case '実施済み': return { background: '#d1fae5', color: '#065f46' };
+          case '予約済み': return { background: '#fef3c7', color: '#92400e' };
+          case '予約予定': return { background: '#e0e7ff', color: '#3730a3' };
+          case 'キャンセル': return { background: '#fee2e2', color: '#991b1b' };
+          default: return { background: '#f3f4f6', color: '#374151' };
+        }
+      };
+
+      // Sort: 実施済み/キャンセルは下に、それ以外は日付昇順
+      const sortedReservations = [...activeReservations].sort((a, b) => {
+        const aIsCompleted = a.status === '実施済み' || a.status === 'キャンセル';
+        const bIsCompleted = b.status === '実施済み' || b.status === 'キャンセル';
+        
+        // 実施済み/キャンセルを下に
+        if (aIsCompleted && !bIsCompleted) return 1;
+        if (!aIsCompleted && bIsCompleted) return -1;
+        
+        // 同じグループ内では日付昇順（近い日付が上）
+        return (a.date || '').localeCompare(b.date || '');
+      });
+
+      return (
+        <div>
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4a4a4a' }}>予約管理</h2>
+              <button className="btn-primary" onClick={() => setIsAddingReservation(true)}>
+                + 新規予約
+              </button>
+            </div>
+
+            {(isAddingReservation || editingReservation) && (
+              <div className="modal-overlay">
+                <div className="modal" style={{ maxWidth: '600px' }}>
+                  <div className="modal-content">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <h2 className="modal-title" style={{ marginBottom: 0 }}>
+                        {editingReservation ? '予約を編集' : '新しい予約を追加'}
+                      </h2>
+                      <button className="calendar-nav" onClick={handleCancel}>✕</button>
+                    </div>
+                
+                {/* 実施内容（一番上） */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label className="form-label">実施内容</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.content} 
+                    onChange={(e) => setFormData({...formData, content: e.target.value})}
+                  />
+                </div>
+                
+                {/* 状況、日付、ブース（横並び） */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label className="form-label">状況</label>
+                    <select 
+                      className="form-select" 
+                      value={formData.status} 
+                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    >
+                      {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="form-label">日付</label>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      value={formData.date} 
+                      onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="form-label">場所</label>
+                    {formData.booth === '入力' || (formData.booth && formData.booth !== '' && !boothOptions.includes(formData.booth)) ? (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={formData.booth === '入力' ? '' : formData.booth}
+                          onChange={(e) => setFormData({...formData, booth: e.target.value})}
+                          style={{ flex: 1 }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setFormData({...formData, booth: ''})}
+                          className="btn-secondary"
+                          style={{ padding: '0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                        >
+                          選択に戻る
+                        </button>
+                      </div>
+                    ) : (
+                      <select 
+                        className="form-select" 
+                        value={formData.booth}
+                        onChange={(e) => setFormData({...formData, booth: e.target.value})}
+                      >
+                        {boothOptions.map(opt => <option key={opt} value={opt}>{opt === '' ? '選択なし' : opt}</option>)}
+                      </select>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 予約時間と実施時間 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label className="form-label">予約時間</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      <select 
+                        className="form-select" 
+                        value={formData.reservationStartHour}
+                        onChange={(e) => setFormData({...formData, reservationStartHour: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span>:</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.reservationStartMin}
+                        onChange={(e) => setFormData({...formData, reservationStartMin: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <span style={{ margin: '0 0.25rem' }}>～</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.reservationEndHour}
+                        onChange={(e) => setFormData({...formData, reservationEndHour: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span>:</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.reservationEndMin}
+                        onChange={(e) => setFormData({...formData, reservationEndMin: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      {calculateDuration(formData.reservationStartHour, formData.reservationStartMin, formData.reservationEndHour, formData.reservationEndMin) && (
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280', marginLeft: '0.5rem' }}>
+                          ({calculateDuration(formData.reservationStartHour, formData.reservationStartMin, formData.reservationEndHour, formData.reservationEndMin)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="form-label">実施時間</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      <select 
+                        className="form-select" 
+                        value={formData.actualStartHour}
+                        onChange={(e) => setFormData({...formData, actualStartHour: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span>:</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.actualStartMin}
+                        onChange={(e) => setFormData({...formData, actualStartMin: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <span style={{ margin: '0 0.25rem' }}>～</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.actualEndHour}
+                        onChange={(e) => setFormData({...formData, actualEndHour: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span>:</span>
+                      <select 
+                        className="form-select" 
+                        value={formData.actualEndMin}
+                        onChange={(e) => setFormData({...formData, actualEndMin: e.target.value})}
+                        style={{ width: '55px', padding: '0.4rem' }}
+                      >
+                        <option value="">--</option>
+                        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      {calculateDuration(formData.actualStartHour, formData.actualStartMin, formData.actualEndHour, formData.actualEndMin) && (
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280', marginLeft: '0.5rem' }}>
+                          ({calculateDuration(formData.actualStartHour, formData.actualStartMin, formData.actualEndHour, formData.actualEndMin)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 備考 */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label className="form-label">備考</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.remarks} 
+                    onChange={(e) => setFormData({...formData, remarks: e.target.value})}
+                  />
+                </div>
+                
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                  <button className="btn-primary" onClick={handleSave}>
+                    {editingReservation ? '更新' : '追加'}
+                  </button>
+                  <button className="btn-secondary" onClick={handleCancel}>
+                    キャンセル
+                  </button>
+                </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {sortedReservations.length === 0 && !isAddingReservation ? (
+              <div className="empty-state">予約がありません</div>
+            ) : (
+              <>
+                {/* モバイル用カード表示 */}
+                <div className="mobile-reservations" style={{ display: 'none' }}>
+                  {sortedReservations.map(reservation => {
+                    const today = new Date();
+                    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    const isToday = reservation.date === todayString;
+                    
+                    return (
+                    <div 
+                      key={reservation.id}
+                      style={{
+                        background: (reservation.status === '実施済み' || reservation.status === 'キャンセル') ? '#fafafa' : 'white',
+                        border: isToday ? '2px solid #ed8936' : '1px solid #ffe4c4',
+                        boxShadow: isToday ? '0 0 0 1px #ed8936' : 'none',
+                        borderRadius: '0.5rem',
+                        padding: '1rem',
+                        marginBottom: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <select
+                          value={reservation.status}
+                          onChange={async (e) => {
+                            const updatedReservation = { ...reservation, status: e.target.value };
+                            const updatedReservations = reservations.map(r => 
+                              r.id === reservation.id ? updatedReservation : r
+                            );
+                            setReservations(updatedReservations);
+                            localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+                            await api.post('update', 'reservations', updatedReservation);
+                          }}
+                          style={{ 
+                            ...getStatusStyle(reservation.status),
+                            padding: '0.25rem 0.5rem', 
+                            borderRadius: '0.25rem', 
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                        <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          {reservation.date ? reservation.date.replace(/-/g, '/').slice(5) : ''}
+                          {reservation.date && (() => {
+                            const d = new Date(reservation.date + 'T00:00:00');
+                            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                            return ` (${weekdays[d.getDay()]})`;
+                          })()}
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.5rem' }}>
+                        {reservation.content}
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                        {reservation.booth && <div>📍 {reservation.booth}</div>}
+                        {reservation.reservationTime && (
+                          <div>🕐 予約: {reservation.reservationTime}{reservation.duration && ` (${reservation.duration})`}</div>
+                        )}
+                        {reservation.actualTime && (
+                          <div>✅ 実施: {reservation.actualTime}{reservation.actualDuration && ` (${reservation.actualDuration})`}</div>
+                        )}
+                      </div>
+                      
+                      {reservation.remarks && (
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#6b7280', 
+                          backgroundColor: '#f9fafb',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          marginBottom: '0.75rem',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>
+                          {reservation.remarks}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={() => handleEdit(reservation)}
+                          className="btn-secondary"
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                        >
+                          編集
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(reservation.id)}
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}
+                        >
+                          削除
+                        </button>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+
+                {/* PC用テーブル表示 */}
+                <div className="desktop-reservations" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', minWidth: '900px' }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb', borderBottom: '2px solid #ffe4c4' }}>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '100px' }}>状況</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '100px' }}>日付</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, minWidth: '180px' }}>実施内容</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>場所</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '110px' }}>予約時間</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', width: '110px' }}>実施時間</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, minWidth: '120px' }}>備考</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600, whiteSpace: 'nowrap', width: '100px' }}>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedReservations.map(reservation => {
+                      const today = new Date();
+                      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                      const isToday = reservation.date === todayString;
+                      
+                      return (
+                      <tr 
+                        key={reservation.id} 
+                        style={{ 
+                          borderBottom: '1px solid #ffe4c4',
+                          background: (reservation.status === '実施済み' || reservation.status === 'キャンセル') ? '#fafafa' : 'white',
+                          outline: isToday ? '2px solid #ed8936' : 'none',
+                          outlineOffset: '-1px'
+                        }}
+                      >
+                        <td style={{ padding: '0.75rem' }}>
+                          <select
+                            value={reservation.status}
+                            onChange={async (e) => {
+                              const updatedReservation = { ...reservation, status: e.target.value };
+                              const updatedReservations = reservations.map(r => 
+                                r.id === reservation.id ? updatedReservation : r
+                              );
+                              setReservations(updatedReservations);
+                              localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+                              await api.post('update', 'reservations', updatedReservation);
+                            }}
+                            style={{ 
+                              ...getStatusStyle(reservation.status),
+                              padding: '0.25rem 0.5rem', 
+                              borderRadius: '0.25rem', 
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
+                              border: 'none',
+                              cursor: 'pointer',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 0.25rem center',
+                              backgroundSize: '0.75rem',
+                              paddingRight: '1.25rem'
+                            }}
+                          >
+                            {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                          {reservation.date ? reservation.date.replace(/-/g, '/').slice(5) : ''}
+                          {reservation.date && (() => {
+                            const d = new Date(reservation.date + 'T00:00:00');
+                            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                            return ` (${weekdays[d.getDay()]})`;
+                          })()}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontWeight: 500 }}>{reservation.content}</td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{reservation.booth}</td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                          <div>{reservation.reservationTime}</div>
+                          {reservation.duration && <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{reservation.duration}</div>}
+                        </td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                          <div>{reservation.actualTime}</div>
+                          {reservation.actualDuration && <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{reservation.actualDuration}</div>}
+                        </td>
+                        <td style={{ padding: '0.75rem', color: '#6b7280', fontSize: '0.8rem' }}>{reservation.remarks}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <button 
+                            onClick={() => handleEdit(reservation)}
+                            className="btn-secondary"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', marginRight: '0.25rem' }}
+                          >
+                            編集
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(reservation.id)}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}
+                          >
+                            削除
+                          </button>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const LinksPage = ({ links, setLinks }) => {
+      const [isAddingLink, setIsAddingLink] = useState(false);
+      const [editingLink, setEditingLink] = useState(null);
+      const [linkName, setLinkName] = useState('');
+      const [linkUrl, setLinkUrl] = useState('');
+      const [linkMemo, setLinkMemo] = useState('');
+      const [draggedLinkId, setDraggedLinkId] = useState(null);
+      const [dragOverLinkId, setDragOverLinkId] = useState(null);
+
+      const activeLinks = links.filter(link => !link.isDeleted);
+
+      const handleDragStart = (e, linkId) => {
+        setDraggedLinkId(linkId);
+        e.dataTransfer.effectAllowed = 'move';
+      };
+
+      const handleDragOver = (e, linkId) => {
+        e.preventDefault();
+        if (linkId !== draggedLinkId) {
+          setDragOverLinkId(linkId);
+        }
+      };
+
+      const handleDragLeave = () => {
+        setDragOverLinkId(null);
+      };
+
+      const handleDrop = async (e, targetLinkId) => {
+        e.preventDefault();
+        if (!draggedLinkId || draggedLinkId === targetLinkId) {
+          setDraggedLinkId(null);
+          setDragOverLinkId(null);
+          return;
+        }
+
+        const draggedIndex = activeLinks.findIndex(l => l.id === draggedLinkId);
+        const targetIndex = activeLinks.findIndex(l => l.id === targetLinkId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        // activeLinks内での順序を変更
+        const newActiveLinks = [...activeLinks];
+        const [draggedLink] = newActiveLinks.splice(draggedIndex, 1);
+        newActiveLinks.splice(targetIndex, 0, draggedLink);
+
+        // orderフィールドを更新
+        const updatedActiveLinks = newActiveLinks.map((link, index) => ({
+          ...link,
+          order: index
+        }));
+
+        // 削除済みリンクと結合
+        const deletedLinks = links.filter(link => link.isDeleted);
+        const updatedLinks = [...updatedActiveLinks, ...deletedLinks];
+
+        setLinks(updatedLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+
+        // 順序が変わったリンクをAPIで更新
+        for (const link of updatedActiveLinks) {
+          await api.post('update', 'links', link);
+        }
+
+        setDraggedLinkId(null);
+        setDragOverLinkId(null);
+      };
+
+      const handleDragEnd = () => {
+        setDraggedLinkId(null);
+        setDragOverLinkId(null);
+      };
+
+      // 上に移動
+      const handleMoveUp = async (linkId) => {
+        const sortedLinks = [...activeLinks].sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : Infinity;
+          const orderB = b.order !== undefined ? b.order : Infinity;
+          return orderA - orderB;
+        });
+        const index = sortedLinks.findIndex(l => l.id === linkId);
+        if (index <= 0) return;
+
+        // swap
+        [sortedLinks[index - 1], sortedLinks[index]] = [sortedLinks[index], sortedLinks[index - 1]];
+
+        const updatedActiveLinks = sortedLinks.map((link, i) => ({ ...link, order: i }));
+        const deletedLinks = links.filter(link => link.isDeleted);
+        const updatedLinks = [...updatedActiveLinks, ...deletedLinks];
+
+        setLinks(updatedLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+
+        for (const link of updatedActiveLinks) {
+          await api.post('update', 'links', link);
+        }
+      };
+
+      // 下に移動
+      const handleMoveDown = async (linkId) => {
+        const sortedLinks = [...activeLinks].sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : Infinity;
+          const orderB = b.order !== undefined ? b.order : Infinity;
+          return orderA - orderB;
+        });
+        const index = sortedLinks.findIndex(l => l.id === linkId);
+        if (index < 0 || index >= sortedLinks.length - 1) return;
+
+        // swap
+        [sortedLinks[index], sortedLinks[index + 1]] = [sortedLinks[index + 1], sortedLinks[index]];
+
+        const updatedActiveLinks = sortedLinks.map((link, i) => ({ ...link, order: i }));
+        const deletedLinks = links.filter(link => link.isDeleted);
+        const updatedLinks = [...updatedActiveLinks, ...deletedLinks];
+
+        setLinks(updatedLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+
+        for (const link of updatedActiveLinks) {
+          await api.post('update', 'links', link);
+        }
+      };
+
+      // orderでソート
+      const sortedActiveLinks = [...activeLinks].sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : Infinity;
+        const orderB = b.order !== undefined ? b.order : Infinity;
+        return orderA - orderB;
+      });
+
+      const handleSaveLink = async () => {
+        if (!linkName.trim() || !linkUrl.trim()) return;
+
+        if (editingLink) {
+          const updatedLink = { ...editingLink, name: linkName.trim(), url: linkUrl.trim(), memo: linkMemo.trim() };
+          const updatedLinks = links.map(link => 
+            link.id === editingLink.id ? updatedLink : link
+          );
+          setLinks(updatedLinks);
+          localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+          await api.post('update', 'links', updatedLink);
+        } else {
+          const maxOrder = activeLinks.reduce((max, link) => Math.max(max, link.order || 0), -1);
+          const newLink = {
+            id: Date.now().toString(),
+            name: linkName.trim(),
+            url: linkUrl.trim(),
+            memo: linkMemo.trim(),
+            isDeleted: false,
+            order: maxOrder + 1
+          };
+          const updatedLinks = [...links, newLink];
+          setLinks(updatedLinks);
+          localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+          await api.post('add', 'links', newLink);
+        }
+
+        setLinkName('');
+        setLinkUrl('');
+        setLinkMemo('');
+        setIsAddingLink(false);
+        setEditingLink(null);
+      };
+
+      const handleDeleteLink = async (id) => {
+        if (confirm('このリンクを削除しますか？')) {
+          const updatedLinks = links.map(link => link.id === id ? { ...link, isDeleted: true } : link);
+          const updatedLink = updatedLinks.find(l => l.id === id);
+          setLinks(updatedLinks);
+          localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+          await api.post('update', 'links', updatedLink);
+        }
+      };
+
+      const handleEditLink = (link) => {
+        setEditingLink(link);
+        setLinkName(link.name);
+        setLinkUrl(link.url);
+        setLinkMemo(link.memo || '');
+        setIsAddingLink(true);
+      };
+
+      const handleCancel = () => {
+        setLinkName('');
+        setLinkUrl('');
+        setLinkMemo('');
+        setIsAddingLink(false);
+        setEditingLink(null);
+      };
+
+      return (
+        <div>
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4a4a4a' }}>よく使うリンク</h2>
+              {!isAddingLink && (
+                <button className="btn-primary" onClick={() => setIsAddingLink(true)}>
+                  + 新規追加
+                </button>
+              )}
+            </div>
+
+            {isAddingLink && (
+              <div style={{ 
+                background: 'white', 
+                padding: '1.5rem', 
+                borderRadius: '0.5rem', 
+                border: '1px solid #ffe4c4',
+                marginBottom: '1.5rem' 
+              }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem', color: '#4a4a4a' }}>
+                  {editingLink ? 'リンクを編集' : '新しいリンクを追加'}
+                </h3>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#6b7280', marginBottom: '0.5rem' }}>
+                    サイト名
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={linkName}
+                    onChange={(e) => setLinkName(e.target.value)}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#6b7280', marginBottom: '0.5rem' }}>
+                    URL
+                  </label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#6b7280', marginBottom: '0.5rem' }}>
+                    メモ
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={linkMemo}
+                    onChange={(e) => setLinkMemo(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button className="btn-primary" onClick={handleSaveLink}>
+                    {editingLink ? '更新' : '追加'}
+                  </button>
+                  <button className="btn-secondary" onClick={handleCancel}>
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {sortedActiveLinks.length === 0 ? (
+              <div className="empty-state">リンクがありません</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
+                {sortedActiveLinks.map(link => (
+                  <div
+                    key={link.id}
+                    onDragOver={(e) => handleDragOver(e, link.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, link.id)}
+                    style={{
+                      background: 'white',
+                      padding: '1rem',
+                      borderRadius: '0.5rem',
+                      border: dragOverLinkId === link.id ? '2px solid #ed8936' : '1px solid #ffe4c4',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      opacity: draggedLinkId === link.id ? 0.5 : 1,
+                      position: 'relative'
+                    }}
+                  >
+                    {/* ドラッグハンドル（PC用） */}
+                    <div 
+                      className="link-drag-handle"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, link.id)}
+                      onDragEnd={handleDragEnd}
+                      style={{
+                        position: 'absolute',
+                        top: '0.5rem',
+                        left: '0.5rem',
+                        color: '#9ca3af',
+                        fontSize: '1rem',
+                        cursor: 'grab',
+                        padding: '0.25rem',
+                        userSelect: 'none'
+                      }}
+                    >
+                      ⋮⋮
+                    </div>
+                    <div className="link-content-wrapper" style={{ flex: 1, paddingLeft: '1.25rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem', color: '#4a4a4a' }}>
+                        {link.name}
+                      </div>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          fontSize: '0.8rem',
+                          color: '#ed8936',
+                          textDecoration: 'none',
+                          wordBreak: 'break-all',
+                          display: 'block',
+                          marginBottom: '0.5rem'
+                        }}
+                      >
+                        {link.url}
+                      </a>
+                      {link.memo && (
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', background: '#f9fafb', padding: '0.5rem', borderRadius: '0.25rem' }}>
+                          {link.memo}
+                        </div>
+                      )}
+                    </div>
+                    <div className="link-content-wrapper" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={(e) => { e.stopPropagation(); handleEditLink(link); }}
+                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                      >
+                        編集
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id); }}
+                        style={{ 
+                          padding: '0.4rem 0.75rem', 
+                          fontSize: '0.75rem', 
+                          color: '#9ca3af', 
+                          background: 'transparent', 
+                          border: '1px solid #e5e7eb', 
+                          borderRadius: '0.25rem', 
+                          cursor: 'pointer' 
+                        }}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const DeletedTasksPage = ({ tasks, links, reservations, onRestoreTask, onPermanentDeleteTask, onDeleteAllTasks, onRestoreLink, onPermanentDeleteLink, onDeleteAllLinks, onRestoreReservation, onPermanentDeleteReservation, onDeleteAllReservations }) => {
+      const deletedTasks = tasks.filter(task => task.isDeleted);
+      const deletedLinks = links.filter(link => link.isDeleted);
+      const deletedReservations = reservations.filter(r => r.isDeleted);
+      const totalDeleted = deletedTasks.length + deletedLinks.length + deletedReservations.length;
+      
+      // 日付をフォーマット（例: 11/28 (金)）
+      const formatDateWithWeekday = (dateString) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
+      };
+      
+      return (
+        <div>
+          <div style={{marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <h2 style={{fontSize: '1.5rem', fontWeight: 'bold'}}>削除済みアイテム ({totalDeleted}件)</h2>
+          </div>
+          
+          {/* Deleted Tasks Section */}
+          {deletedTasks.length > 0 && (
+            <div style={{marginBottom: '2rem'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                <h3 style={{fontSize: '1.1rem', fontWeight: 600, color: '#4a4a4a'}}>タスク ({deletedTasks.length}件)</h3>
+                <button onClick={onDeleteAllTasks} style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                  すべて完全削除
+                </button>
+              </div>
+              <div>
+                {deletedTasks.map(task => (
+                  <div key={task.id} style={{padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#fef2f2', marginBottom: '0.5rem'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem'}}>
+                      <div style={{flex: 1}}>
+                        <h3 style={{fontWeight: 500, marginBottom: '0.5rem', color: '#991b1b', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{task.title || '(タイトルなし)'}</h3>
+                        {task.description && (
+                          <div style={{fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
+                            {task.description}
+                          </div>
+                        )}
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                          {task.workDate && <span>📅 {formatDateWithWeekday(task.workDate)}</span>}
+                          {task.dueDate && <span style={{color: '#dc2626'}}>⏰ {formatDateWithWeekday(task.dueDate)}</span>}
+                          {task.tag && <span>🏷️ {task.tag}</span>}
+                        </div>
+                      </div>
+                      <div style={{display: 'flex', gap: '0.5rem', flexShrink: 0}}>
+                        <button onClick={() => onRestoreTask(task.id)} className="btn-secondary" style={{padding: '0.5rem 1rem'}}>
+                          復元
+                        </button>
+                        <button onClick={() => onPermanentDeleteTask(task.id)} style={{padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                          完全削除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Deleted Reservations Section */}
+          {deletedReservations.length > 0 && (
+            <div style={{marginBottom: '2rem'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                <h3 style={{fontSize: '1.1rem', fontWeight: 600, color: '#4a4a4a'}}>予約 ({deletedReservations.length}件)</h3>
+                <button onClick={onDeleteAllReservations} style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                  すべて完全削除
+                </button>
+              </div>
+              <div>
+                {deletedReservations.map(reservation => (
+                  <div key={reservation.id} style={{padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#fef2f2', marginBottom: '0.5rem'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem'}}>
+                      <div style={{flex: 1}}>
+                        <h3 style={{fontWeight: 500, marginBottom: '0.5rem', color: '#991b1b'}}>{reservation.content || '(内容なし)'}</h3>
+                        <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                          📅 {formatDateWithWeekday(reservation.date)} | {reservation.reservationTime} | {reservation.booth}
+                        </div>
+                      </div>
+                      <div style={{display: 'flex', gap: '0.5rem', flexShrink: 0}}>
+                        <button onClick={() => onRestoreReservation(reservation.id)} className="btn-secondary" style={{padding: '0.5rem 1rem'}}>
+                          復元
+                        </button>
+                        <button onClick={() => onPermanentDeleteReservation(reservation.id)} style={{padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                          完全削除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Deleted Links Section */}
+          {deletedLinks.length > 0 && (
+            <div style={{marginBottom: '2rem'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                <h3 style={{fontSize: '1.1rem', fontWeight: 600, color: '#4a4a4a'}}>リンク ({deletedLinks.length}件)</h3>
+                <button onClick={onDeleteAllLinks} style={{padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                  すべて完全削除
+                </button>
+              </div>
+              <div>
+                {deletedLinks.map(link => (
+                  <div key={link.id} style={{padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#fef2f2', marginBottom: '0.5rem'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem'}}>
+                      <div style={{flex: 1}}>
+                        <h3 style={{fontWeight: 500, marginBottom: '0.5rem', color: '#991b1b'}}>{link.name}</h3>
+                        <div style={{fontSize: '0.875rem', color: '#6b7280', wordBreak: 'break-all'}}>
+                          🔗 {link.url}
+                        </div>
+                      </div>
+                      <div style={{display: 'flex', gap: '0.5rem', flexShrink: 0}}>
+                        <button onClick={() => onRestoreLink(link.id)} className="btn-secondary" style={{padding: '0.5rem 1rem'}}>
+                          復元
+                        </button>
+                        <button onClick={() => onPermanentDeleteLink(link.id)} style={{padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#9ca3af', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '0.375rem', cursor: 'pointer'}}>
+                          完全削除
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {totalDeleted === 0 && (
+            <div className="empty-state">削除済みのアイテムはありません</div>
+          )}
+        </div>
+      );
+    };
+
+    const TaskListPage = ({ tasks, onToggleComplete, onEditTask, onAddTask }) => (
+      <div>
+        <TaskList tasks={tasks} onToggleComplete={onToggleComplete} onEditTask={onEditTask} />
+        <button className="btn-fab" onClick={onAddTask}><span style={{display: 'block', marginTop: '-1px'}}>+</span></button>
+      </div>
+    );
+
+    const App = () => {
+      const { tasks, isLoading: isTasksLoading, createTask, updateTask, deleteTask, permanentlyDeleteTask, permanentlyDeleteAll, restoreTask, toggleComplete, reorderTasks } = useTasks();
+      const [activeTab, setActiveTab] = useState(() => {
+        try {
+          return localStorage.getItem('activeTab') || 'calendar';
+        } catch {
+          return 'calendar';
+        }
+      });
+      const [viewMode, setViewMode] = useState(() => {
+        try {
+          return localStorage.getItem('viewMode') || 'workDate';
+        } catch {
+          return 'workDate';
+        }
+      });
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [editingTask, setEditingTask] = useState(undefined);
+      const [preselectedDate, setPreselectedDate] = useState(null);
+      
+      // Links state management with Google Sheets
+      const [links, setLinks] = useState([]);
+      const [isLinksLoading, setIsLinksLoading] = useState(true);
+      
+      useEffect(() => {
+        const loadLinks = async () => {
+          setIsLinksLoading(true);
+          
+          // ローカルから先に読み込み
+          let localLinksData = [];
+          try {
+            const localLinks = localStorage.getItem('frequentLinks');
+            if (localLinks) {
+              localLinksData = JSON.parse(localLinks);
+              // orderでソート
+              localLinksData.sort((a, b) => {
+                const orderA = a.order !== undefined ? a.order : Infinity;
+                const orderB = b.order !== undefined ? b.order : Infinity;
+                return orderA - orderB;
+              });
+              setLinks(localLinksData);
+            }
+          } catch {}
+          
+          // スプレッドシートから取得
+          const remoteLinks = await api.get('links');
+          if (remoteLinks.length > 0) {
+            // ローカルのorder情報をマージ
+            const localOrderMap = {};
+            localLinksData.forEach(link => {
+              if (link.order !== undefined) {
+                localOrderMap[link.id] = link.order;
+              }
+            });
+            
+            // リモートデータにローカルのorderをマージ
+            const mergedLinks = remoteLinks.map(link => ({
+              ...link,
+              order: localOrderMap[link.id] !== undefined ? localOrderMap[link.id] : (link.order !== undefined ? link.order : Infinity)
+            }));
+            
+            // orderでソート
+            mergedLinks.sort((a, b) => {
+              const orderA = a.order !== undefined ? a.order : Infinity;
+              const orderB = b.order !== undefined ? b.order : Infinity;
+              return orderA - orderB;
+            });
+            
+            setLinks(mergedLinks);
+            localStorage.setItem('frequentLinks', JSON.stringify(mergedLinks));
+          }
+          setIsLinksLoading(false);
+        };
+        loadLinks();
+      }, []);
+      
+      // リンクが更新されたらローカルとスプレッドシートに保存
+      const updateLinks = async (newLinks, action, data) => {
+        setLinks(newLinks);
+        localStorage.setItem('frequentLinks', JSON.stringify(newLinks));
+        if (action && data) {
+          await api.post(action, 'links', data);
+        }
+      };
+      
+      const restoreLink = async (id) => {
+        const updatedLinks = links.map(link => link.id === id ? { ...link, isDeleted: false } : link);
+        const updatedLink = updatedLinks.find(l => l.id === id);
+        await updateLinks(updatedLinks, 'update', updatedLink);
+      };
+      
+      const permanentlyDeleteLink = async (id) => {
+        if (confirm('このリンクを完全に削除しますか？')) {
+          const updatedLinks = links.filter(link => link.id !== id);
+          await updateLinks(updatedLinks, 'delete', { id });
+        }
+      };
+      
+      const deleteAllLinks = async () => {
+        if (confirm('削除済みリンクをすべて完全に削除しますか？')) {
+          const deletedIds = links.filter(l => l.isDeleted).map(l => l.id);
+          const updatedLinks = links.filter(link => !link.isDeleted);
+          setLinks(updatedLinks);
+          localStorage.setItem('frequentLinks', JSON.stringify(updatedLinks));
+          for (const id of deletedIds) {
+            await api.post('delete', 'links', { id });
+          }
+        }
+      };
+
+      // 日付メモ state management with Google Sheets
+      const [dateMemos, setDateMemos] = useState(() => {
+        try {
+          const saved = localStorage.getItem('dateMemos');
+          return saved ? JSON.parse(saved) : {};
+        } catch {
+          return {};
+        }
+      });
+      const [isDateMemosLoading, setIsDateMemosLoading] = useState(true);
+
+      // 日付メモをスプレッドシートから読み込み
+      useEffect(() => {
+        const loadDateMemos = async () => {
+          setIsDateMemosLoading(true);
+          try {
+            const remoteMemos = await api.get('dateMemos');
+            if (remoteMemos && remoteMemos.length > 0) {
+              // 配列からオブジェクトに変換 { date: memo }
+              const memosObj = {};
+              remoteMemos.forEach(item => {
+                if (item.date && item.memo) {
+                  memosObj[item.date] = item.memo;
+                }
+              });
+              setDateMemos(memosObj);
+              localStorage.setItem('dateMemos', JSON.stringify(memosObj));
+            }
+          } catch (error) {
+            console.error('Error loading dateMemos:', error);
+          }
+          setIsDateMemosLoading(false);
+        };
+        loadDateMemos();
+      }, []);
+
+      const updateDateMemo = async (date, memo) => {
+        const updated = { ...dateMemos };
+        const trimmedMemo = memo.trim();
+        
+        if (trimmedMemo) {
+          updated[date] = trimmedMemo;
+          // スプレッドシートに保存（既存の場合は更新、新規の場合は追加）
+          if (dateMemos[date]) {
+            await api.post('update', 'dateMemos', { date, memo: trimmedMemo });
+          } else {
+            await api.post('add', 'dateMemos', { date, memo: trimmedMemo });
+          }
+        } else {
+          delete updated[date];
+          // スプレッドシートから削除
+          await api.post('delete', 'dateMemos', { id: date });
+        }
+        
+        setDateMemos(updated);
+        localStorage.setItem('dateMemos', JSON.stringify(updated));
+      };
+
+      // Reservations state management with Google Sheets
+      const [reservations, setReservations] = useState([]);
+      const [isReservationsLoading, setIsReservationsLoading] = useState(true);
+      
+      useEffect(() => {
+        const loadReservations = async () => {
+          setIsReservationsLoading(true);
+          // ローカルから先に読み込み
+          try {
+            const localReservations = localStorage.getItem('reservations');
+            if (localReservations) setReservations(JSON.parse(localReservations));
+          } catch {}
+          // スプレッドシートから取得
+          const remoteReservations = await api.get('reservations');
+          if (remoteReservations.length > 0 || reservations.length === 0) {
+            setReservations(remoteReservations);
+            localStorage.setItem('reservations', JSON.stringify(remoteReservations));
+          }
+          setIsReservationsLoading(false);
+        };
+        loadReservations();
+      }, []);
+      
+      // 予約が更新されたらローカルとスプレッドシートに保存
+      const updateReservations = async (newReservations, action, data) => {
+        setReservations(newReservations);
+        localStorage.setItem('reservations', JSON.stringify(newReservations));
+        if (action && data) {
+          await api.post(action, 'reservations', data);
+        }
+      };
+      
+      const restoreReservation = async (id) => {
+        const updatedReservations = reservations.map(r => r.id === id ? { ...r, isDeleted: false } : r);
+        const updatedReservation = updatedReservations.find(r => r.id === id);
+        await updateReservations(updatedReservations, 'update', updatedReservation);
+      };
+      
+      const permanentlyDeleteReservation = async (id) => {
+        if (confirm('この予約を完全に削除しますか？')) {
+          const updatedReservations = reservations.filter(r => r.id !== id);
+          await updateReservations(updatedReservations, 'delete', { id });
+        }
+      };
+      
+      const deleteAllReservations = async () => {
+        if (confirm('削除済み予約をすべて完全に削除しますか？')) {
+          const deletedIds = reservations.filter(r => r.isDeleted).map(r => r.id);
+          const updatedReservations = reservations.filter(r => !r.isDeleted);
+          setReservations(updatedReservations);
+          localStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          for (const id of deletedIds) {
+            await api.post('delete', 'reservations', { id });
+          }
+        }
+      };
+      
+      // 全体のローディング状態
+      const [isSyncing, setIsSyncing] = useState(false);
+      const isLoading = isTasksLoading || isLinksLoading || isReservationsLoading;
+
+      // ローカルデータをスプレッドシートに一括同期
+      const syncAllToSpreadsheet = async () => {
+        if (!confirm('ローカルのデータをスプレッドシートにアップロードします。\n既存のスプレッドシートのデータは上書きされます。\n\n続行しますか？')) {
+          return;
+        }
+        
+        setIsSyncing(true);
+        try {
+          // タスクを同期
+          if (tasks.length > 0) {
+            await api.post('sync', 'tasks', tasks);
+          }
+          
+          // リンクを同期
+          if (links.length > 0) {
+            await api.post('sync', 'links', links);
+          }
+          
+          // 予約を同期
+          if (reservations.length > 0) {
+            await api.post('sync', 'reservations', reservations);
+          }
+          
+          alert('スプレッドシートへの同期が完了しました！');
+        } catch (error) {
+          console.error('Sync error:', error);
+          alert('同期中にエラーが発生しました。');
+        }
+        setIsSyncing(false);
+      };
+
+      const activeTasks = tasks.filter(task => !task.isDeleted);
+
+      // Save active tab to localStorage when it changes
+      useEffect(() => {
+        try {
+          localStorage.setItem('activeTab', activeTab);
+        } catch (error) {
+          console.error('Failed to save activeTab:', error);
+        }
+      }, [activeTab]);
+
+      // Save view mode to localStorage when it changes
+      useEffect(() => {
+        try {
+          localStorage.setItem('viewMode', viewMode);
+        } catch (error) {
+          console.error('Failed to save viewMode:', error);
+        }
+      }, [viewMode]);
+
+      const handleSaveTask = (taskData) => {
+        if (editingTask) {
+          updateTask(editingTask.id, taskData);
+        } else {
+          createTask(taskData);
+        }
+      };
+
+      const handleDeleteTask = () => {
+        if (editingTask) {
+          deleteTask(editingTask.id);
+          setIsModalOpen(false);
+          setEditingTask(undefined);
+        }
+      };
+
+      return (
+        <div>
+          {isLoading && <LoadingOverlay message="データを読み込み中..." />}
+          {isSyncing && <LoadingOverlay message="スプレッドシートに同期中..." />}
+          <div className="container">
+            <header className="header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div className="title">タスク管理</div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1.5rem' }}>
+                  <a
+                    href="https://discord.com/channels/1433127905138966671/1433127906107724038"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Discord チャットを開く"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      border: '2px solid #ffe4c4',
+                      color: '#ed8936',
+                      textDecoration: 'none',
+                      fontSize: '1.25rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#fff4e6';
+                      e.currentTarget.style.borderColor = '#ed8936';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#ffe4c4';
+                    }}
+                  >
+                    💬
+                  </a>
+                  <a
+                    href="https://discord.com/channels/1433127905138966671/1433133343318347866"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Discord 資料を開く"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      border: '2px solid #ffe4c4',
+                      color: '#ed8936',
+                      textDecoration: 'none',
+                      fontSize: '1.25rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#fff4e6';
+                      e.currentTarget.style.borderColor = '#ed8936';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#ffe4c4';
+                    }}
+                  >
+                    📚
+                  </a>
+                  <a
+                    href="https://calendar.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Googleカレンダーを開く"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      border: '2px solid #ffe4c4',
+                      color: '#ed8936',
+                      textDecoration: 'none',
+                      fontSize: '1.25rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = '#fff4e6';
+                      e.currentTarget.style.borderColor = '#ed8936';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#ffe4c4';
+                    }}
+                  >
+                    📅
+                  </a>
+                </div>
+              </div>
+              <TabSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
+            </header>
+            <main className="main">
+              {activeTab === 'calendar' ? (
+                <CalendarPage
+                  tasks={activeTasks}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  onAddTask={(date) => { 
+                    setEditingTask(undefined); 
+                    setPreselectedDate(date);
+                    setIsModalOpen(true); 
+                  }}
+                  onToggleComplete={toggleComplete}
+                  onTaskClick={(task) => { setEditingTask(task); setIsModalOpen(true); }}
+                  dateMemos={dateMemos}
+                  onUpdateDateMemo={updateDateMemo}
+                />
+              ) : activeTab === 'list' ? (
+                <TaskListPage
+                  tasks={activeTasks}
+                  onToggleComplete={toggleComplete}
+                  onEditTask={(task) => { setEditingTask(task); setIsModalOpen(true); }}
+                  onAddTask={() => { setEditingTask(undefined); setIsModalOpen(true); }}
+                />
+              ) : activeTab === 'reservations' ? (
+                <ReservationsPage reservations={reservations} setReservations={setReservations} />
+              ) : activeTab === 'links' ? (
+                <LinksPage links={links} setLinks={setLinks} />
+              ) : (
+                <DeletedTasksPage
+                  tasks={tasks}
+                  links={links}
+                  reservations={reservations}
+                  onRestoreTask={restoreTask}
+                  onPermanentDeleteTask={permanentlyDeleteTask}
+                  onDeleteAllTasks={() => {
+                    if (confirm('削除済みのタスクをすべて完全に削除しますか？この操作は取り消せません。')) {
+                      permanentlyDeleteAll();
+                    }
+                  }}
+                  onRestoreLink={restoreLink}
+                  onPermanentDeleteLink={permanentlyDeleteLink}
+                  onDeleteAllLinks={deleteAllLinks}
+                  onRestoreReservation={restoreReservation}
+                  onPermanentDeleteReservation={permanentlyDeleteReservation}
+                  onDeleteAllReservations={deleteAllReservations}
+                />
+              )}
+            </main>
+            <TaskModal
+              isOpen={isModalOpen}
+              onClose={() => { setIsModalOpen(false); setEditingTask(undefined); setPreselectedDate(null); }}
+              onSave={handleSaveTask}
+              onDelete={editingTask ? handleDeleteTask : undefined}
+              task={editingTask}
+              preselectedDate={preselectedDate}
+            />
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
