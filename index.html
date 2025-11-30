@@ -717,11 +717,12 @@
         return 'badge-tag';
       };
       
-      // Check if task is today based on sort order
+      // Check if task is today (作業日または締切日が今日なら太枠)
       const today = new Date();
       const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const isToday = (sortBy === 'workDate' && task.workDate === todayString) || 
-                      (sortBy === 'dueDate' && task.dueDate === todayString);
+      const isToday = task.workDate === todayString || 
+                      task.dueDate === todayString ||
+                      (task.workDate && task.workDateEnd && todayString >= task.workDate && todayString <= task.workDateEnd);
       
       return (
         <div 
