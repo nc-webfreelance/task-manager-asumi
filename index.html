@@ -431,6 +431,7 @@
       const [title, setTitle] = useState('');
       const [description, setDescription] = useState('');
       const [workDate, setWorkDate] = useState('');
+      const [workDateEnd, setWorkDateEnd] = useState('');
       const [workDateMemo, setWorkDateMemo] = useState('');
       const [isWorkDateUndecided, setIsWorkDateUndecided] = useState(false);
       const [dueDate, setDueDate] = useState('');
@@ -448,6 +449,7 @@
           setTitle(task.title);
           setDescription(task.description || '');
           setWorkDate(task.workDate);
+          setWorkDateEnd(task.workDateEnd || '');
           setWorkDateMemo(task.workDateMemo || '');
           setIsWorkDateUndecided(task.isWorkDateUndecided || false);
           setDueDate(task.dueDate);
@@ -459,6 +461,7 @@
           setTitle('');
           setDescription('');
           setWorkDate(preselectedDate || '');
+          setWorkDateEnd('');
           setWorkDateMemo('');
           setIsWorkDateUndecided(false);
           setDueDate('');
@@ -486,6 +489,7 @@
           title: title.trim(),
           description: description.trim(),
           workDate,
+          workDateEnd,
           workDateMemo: workDateMemo.trim(),
           isWorkDateUndecided,
           dueDate,
@@ -523,7 +527,7 @@
                 </div>
                 <div className="form-group">
                   <label className="form-label">作業日</label>
-                  <div style={{display: 'flex', gap: '0.5rem', marginBottom: '0.5rem'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem'}}>
                     <input 
                       type="date" 
                       className="form-input" 
@@ -532,13 +536,25 @@
                       style={{flex: 1}}
                       disabled={isWorkDateUndecided}
                     />
+                    <span style={{color: '#6b7280'}}>〜</span>
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      value={workDateEnd} 
+                      onChange={(e) => setWorkDateEnd(e.target.value)} 
+                      style={{flex: 1}}
+                      disabled={isWorkDateUndecided}
+                      min={workDate}
+                    />
+                  </div>
+                  <div style={{display: 'flex', gap: '0.5rem', marginBottom: '0.5rem'}}>
                     <input 
                       type="text" 
                       className="form-input" 
                       value={workDateMemo} 
                       onChange={(e) => setWorkDateMemo(e.target.value)} 
                       placeholder="18時、午後など"
-                      style={{flex: 0.6}}
+                      style={{flex: 1}}
                     />
                   </div>
                   <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer'}}>
@@ -549,6 +565,7 @@
                         setIsWorkDateUndecided(e.target.checked);
                         if (e.target.checked) {
                           setWorkDate('');
+                          setWorkDateEnd('');
                         }
                       }}
                       style={{width: '1rem', height: '1rem', cursor: 'pointer'}}
@@ -681,6 +698,17 @@
         return `${dateString.split('-')[1]}/${dateString.split('-')[2]} (${weekday})`;
       };
       
+      // 作業期間を表示する関数
+      const formatWorkDateRange = (task) => {
+        if (!task.workDate) return null;
+        const startDate = formatDateWithWeekday(task.workDate);
+        if (task.workDateEnd && task.workDateEnd !== task.workDate) {
+          const endDate = formatDateWithWeekday(task.workDateEnd);
+          return `${startDate} 〜 ${endDate}`;
+        }
+        return startDate;
+      };
+      
       const getTagClass = (tag) => {
         if (tag === 'セルクエ運営') return 'badge-tag-セルクエ運営';
         if (tag === 'トナリデザイン') return 'badge-tag-トナリデザイン';
@@ -743,7 +771,7 @@
               </div>
             ) : task.workDate ? (
               <div>
-                {formatDateWithWeekday(task.workDate)}
+                {formatWorkDateRange(task)}
                 {task.workDateMemo && <div style={{fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.2rem'}}>{task.workDateMemo}</div>}
               </div>
             ) : task.workDateMemo ? (
@@ -809,7 +837,7 @@
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
               {(task.isWorkDateUndecided || task.workDate || task.workDateMemo) && (
                 <div style={{color: '#6b7280'}}>
-                  📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatDateWithWeekday(task.workDate) : '')}
+                  📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatWorkDateRange(task) : '')}
                   {task.workDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.workDateMemo}</span>}
                 </div>
               )}
@@ -862,6 +890,17 @@
         return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
       };
 
+      // 作業期間を表示する関数
+      const formatWorkDateRange = (task) => {
+        if (!task.workDate) return '';
+        const startDate = formatDateWithWeekday(task.workDate);
+        if (task.workDateEnd && task.workDateEnd !== task.workDate) {
+          const endDate = formatDateWithWeekday(task.workDateEnd);
+          return `${startDate} 〜 ${endDate}`;
+        }
+        return startDate;
+      };
+
       const [sortBy, setSortBy] = useState(() => {
         try {
           const saved = localStorage.getItem('sortBy');
@@ -884,6 +923,7 @@
       const [searchQuery, setSearchQuery] = useState('');
       const [selectedTag, setSelectedTag] = useState('');
       const [selectedTask, setSelectedTask] = useState(null);
+      const [dateRange, setDateRange] = useState('all'); // 'all', 'today', 'week'
       
       // アコーディオン状態（デフォルトは両方開いた状態）
       const [isDatedOpen, setIsDatedOpen] = useState(true);
@@ -964,6 +1004,41 @@
 
       const filteredAndSortedTasks = useMemo(() => {
         let result = [...tasks];
+        
+        // 日付範囲フィルター
+        if (dateRange !== 'all') {
+          const today = new Date();
+          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          
+          if (dateRange === 'today') {
+            result = result.filter(task => {
+              // 作業日または締切日が今日のタスク
+              if (task.workDate === todayString || task.dueDate === todayString) return true;
+              // 作業期間内に今日が含まれる場合
+              if (task.workDate && task.workDateEnd) {
+                return todayString >= task.workDate && todayString <= task.workDateEnd;
+              }
+              return false;
+            });
+          } else if (dateRange === 'week') {
+            const weekLater = new Date(today);
+            weekLater.setDate(weekLater.getDate() + 7);
+            const weekLaterString = `${weekLater.getFullYear()}-${String(weekLater.getMonth() + 1).padStart(2, '0')}-${String(weekLater.getDate()).padStart(2, '0')}`;
+            
+            result = result.filter(task => {
+              // 作業日が1週間以内
+              if (task.workDate && task.workDate >= todayString && task.workDate <= weekLaterString) return true;
+              // 締切日が1週間以内
+              if (task.dueDate && task.dueDate >= todayString && task.dueDate <= weekLaterString) return true;
+              // 作業期間が1週間以内と重なる
+              if (task.workDate && task.workDateEnd) {
+                return task.workDateEnd >= todayString && task.workDate <= weekLaterString;
+              }
+              return false;
+            });
+          }
+        }
+        
         if (searchQuery) {
           result = result.filter(task => 
             task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1069,6 +1144,32 @@
       return (
         <div>
           <input type="text" className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="タスクを検索..." />
+          
+          {/* 期間フィルターボタン */}
+          <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1rem'}}>
+            <button
+              onClick={() => setDateRange('all')}
+              className={dateRange === 'all' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              すべて
+            </button>
+            <button
+              onClick={() => setDateRange('today')}
+              className={dateRange === 'today' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              今日
+            </button>
+            <button
+              onClick={() => setDateRange('week')}
+              className={dateRange === 'week' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              1週間
+            </button>
+          </div>
+          
           <div className="filters">
             <div className="form-group">
               <label className="form-label">並び替え</label>
@@ -1254,7 +1355,7 @@
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.75rem'}}>
                           {(selectedTask.workDate || selectedTask.isWorkDateUndecided || selectedTask.workDateMemo) && (
-                            <span>📅 作業: {selectedTask.isWorkDateUndecided ? '未定' : (selectedTask.workDate ? formatDateWithWeekday(selectedTask.workDate) : '')}{selectedTask.workDateMemo ? ` ${selectedTask.workDateMemo}` : ''}</span>
+                            <span>📅 作業: {selectedTask.isWorkDateUndecided ? '未定' : (selectedTask.workDate ? formatWorkDateRange(selectedTask) : '')}{selectedTask.workDateMemo ? ` ${selectedTask.workDateMemo}` : ''}</span>
                           )}
                           {(selectedTask.dueDate || selectedTask.dueDateMemo) && (
                             <span style={{color: '#dc2626'}}>⏰ 締切: {selectedTask.dueDate ? formatDateWithWeekday(selectedTask.dueDate) : ''}{selectedTask.dueDateMemo ? ` ${selectedTask.dueDateMemo}` : ''}</span>
@@ -1372,9 +1473,18 @@
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
       
+      // 作業日の期間判定を含むタスクフィルター
       const tasksForDate = tasks.filter(task => {
-        const targetDate = viewMode === 'workDate' ? task.workDate : task.dueDate;
-        return targetDate === dateString;
+        if (viewMode === 'workDate') {
+          // 期間がある場合
+          if (task.workDate && task.workDateEnd) {
+            return dateString >= task.workDate && dateString <= task.workDateEnd;
+          }
+          // 期間がない場合は従来通り
+          return task.workDate === dateString;
+        } else {
+          return task.dueDate === dateString;
+        }
       });
       
       // この日のGoogleカレンダー予定を取得
@@ -1439,7 +1549,7 @@
           
           {/* タスク表示 */}
           <div style={{marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: '1.3'}}>
-            {tasksForDate.slice(0, 3).map(task => {
+            {tasksForDate.map(task => {
               // タイトルがない場合は内容またはタグを表示
               let displayTitle = task.title;
               if (!task.title || task.title.trim() === '') {
@@ -1483,11 +1593,6 @@
                 </div>
               );
             })}
-            {tasksForDate.length > 3 && (
-              <div style={{color: '#6b7280', fontSize: '0.7rem', marginTop: '0.25rem'}}>
-                +{tasksForDate.length - 3}件
-              </div>
-            )}
           </div>
         </div>
       );
@@ -1527,8 +1632,16 @@
         const dateString = `${year}-${month}-${day}`;
         
         const tasksForDate = tasks.filter(task => {
-          const targetDate = viewMode === 'workDate' ? task.workDate : task.dueDate;
-          return targetDate === dateString;
+          if (viewMode === 'workDate') {
+            // 期間がある場合
+            if (task.workDate && task.workDateEnd) {
+              return dateString >= task.workDate && dateString <= task.workDateEnd;
+            }
+            // 期間がない場合は従来通り
+            return task.workDate === dateString;
+          } else {
+            return task.dueDate === dateString;
+          }
         });
         onDateClick(dateString, tasksForDate);
       };
