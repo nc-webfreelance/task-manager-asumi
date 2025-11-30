@@ -1881,7 +1881,7 @@
                         const time = event.startTime && event.endTime 
                           ? `${event.startTime}〜${event.endTime}` 
                           : '終日';
-                        return `●${time}　${event.title}`;
+                        return `⚫︎${time}　${event.title}`;
                       }).join('\n');
                       const text = `${header}\n${items}`;
                       navigator.clipboard.writeText(text);
@@ -1960,7 +1960,7 @@
                             const title = task.title || '';
                             const description = task.description || '';
                             const content = [title, description].filter(Boolean).join('　');
-                            return `●${content}`;
+                            return `⚫︎${content}`;
                           }).join('\n');
                           const text = `${header}\n${items}`;
                           navigator.clipboard.writeText(text);
