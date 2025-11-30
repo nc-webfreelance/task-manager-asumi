@@ -1008,31 +1008,38 @@
         // 日付範囲フィルター
         if (dateRange !== 'all') {
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
           const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
           
           if (dateRange === 'today') {
             result = result.filter(task => {
-              // 作業日または締切日が今日のタスク
-              if (task.workDate === todayString || task.dueDate === todayString) return true;
+              // 作業日が今日
+              if (task.workDate === todayString) return true;
+              // 締切日が今日
+              if (task.dueDate === todayString) return true;
               // 作業期間内に今日が含まれる場合
               if (task.workDate && task.workDateEnd) {
-                return todayString >= task.workDate && todayString <= task.workDateEnd;
+                if (todayString >= task.workDate && todayString <= task.workDateEnd) return true;
               }
               return false;
             });
           } else if (dateRange === 'week') {
             const weekLater = new Date(today);
-            weekLater.setDate(weekLater.getDate() + 7);
+            weekLater.setDate(weekLater.getDate() + 6); // 今日含め7日間
             const weekLaterString = `${weekLater.getFullYear()}-${String(weekLater.getMonth() + 1).padStart(2, '0')}-${String(weekLater.getDate()).padStart(2, '0')}`;
             
             result = result.filter(task => {
-              // 作業日が1週間以内
-              if (task.workDate && task.workDate >= todayString && task.workDate <= weekLaterString) return true;
-              // 締切日が1週間以内
-              if (task.dueDate && task.dueDate >= todayString && task.dueDate <= weekLaterString) return true;
+              // 作業日が今日〜1週間以内
+              if (task.workDate) {
+                if (task.workDate >= todayString && task.workDate <= weekLaterString) return true;
+              }
+              // 締切日が今日〜1週間以内
+              if (task.dueDate) {
+                if (task.dueDate >= todayString && task.dueDate <= weekLaterString) return true;
+              }
               // 作業期間が1週間以内と重なる
               if (task.workDate && task.workDateEnd) {
-                return task.workDateEnd >= todayString && task.workDate <= weekLaterString;
+                if (task.workDateEnd >= todayString && task.workDate <= weekLaterString) return true;
               }
               return false;
             });
@@ -1041,9 +1048,9 @@
         
         if (searchQuery) {
           result = result.filter(task => 
-            task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.remarks.toLowerCase().includes(searchQuery.toLowerCase())
+            (task.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (task.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (task.remarks || '').toLowerCase().includes(searchQuery.toLowerCase())
           );
         }
         if (selectedTag) {
@@ -1116,7 +1123,7 @@
           }
         });
         return result;
-      }, [tasks, sortBy, filterBy, searchQuery, selectedTag]);
+      }, [tasks, sortBy, filterBy, searchQuery, selectedTag, dateRange]);
 
       // 日付あり/なしでタスクを分ける
       const { datedTasks, undatedTasks } = useMemo(() => {
