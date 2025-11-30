@@ -1817,6 +1817,17 @@
         return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
       };
 
+      // 作業期間を表示する関数
+      const formatWorkDateRange = (task) => {
+        if (!task.workDate) return '';
+        const startDate = formatDateWithWeekday(task.workDate);
+        if (task.workDateEnd && task.workDateEnd !== task.workDate) {
+          const endDate = formatDateWithWeekday(task.workDateEnd);
+          return `${startDate} 〜 ${endDate}`;
+        }
+        return startDate;
+      };
+
       // 日付をフォーマット（例: 11月28日 (金)）
       const formatDateTitle = (dateString) => {
         if (!dateString) return '';
@@ -1964,7 +1975,7 @@
                               <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
                                 {(task.isWorkDateUndecided || task.workDate || task.workDateMemo) && (
                                   <div style={{color: '#6b7280'}}>
-                                    📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatDateWithWeekday(task.workDate) : '')}
+                                    📅 作業: {task.isWorkDateUndecided ? '未定' : (task.workDate ? formatWorkDateRange(task) : '')}
                                     {task.workDateMemo && <span style={{marginLeft: '0.25rem'}}>{task.workDateMemo}</span>}
                                   </div>
                                 )}
@@ -3065,6 +3076,17 @@
         const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
         return `${parseInt(m)}/${parseInt(d)} (${weekdays[date.getDay()]})`;
       };
+
+      // 作業期間を表示する関数
+      const formatWorkDateRange = (task) => {
+        if (!task.workDate) return '';
+        const startDate = formatDateWithWeekday(task.workDate);
+        if (task.workDateEnd && task.workDateEnd !== task.workDate) {
+          const endDate = formatDateWithWeekday(task.workDateEnd);
+          return `${startDate} 〜 ${endDate}`;
+        }
+        return startDate;
+      };
       
       return (
         <div>
@@ -3093,7 +3115,7 @@
                           </div>
                         )}
                         <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
-                          {task.workDate && <span>📅 {formatDateWithWeekday(task.workDate)}</span>}
+                          {task.workDate && <span>📅 {formatWorkDateRange(task)}</span>}
                           {task.dueDate && <span style={{color: '#dc2626'}}>⏰ {formatDateWithWeekday(task.dueDate)}</span>}
                           {task.tag && <span>🏷️ {task.tag}</span>}
                         </div>
