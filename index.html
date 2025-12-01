@@ -1481,6 +1481,15 @@
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
       
+      // 日付をフォーマット（例: 12/5 (木)）
+      const formatDateWithWeekday = (dateStr) => {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        const dt = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${parseInt(m)}/${parseInt(d)} (${weekdays[dt.getDay()]})`;
+      };
+      
       // 作業日の期間判定を含むタスクフィルター
       const tasksForDate = tasks.filter(task => {
         if (viewMode === 'workDate') {
@@ -1615,7 +1624,12 @@
                       🗓 {task.workDateMemo}
                     </div>
                   )}
-                  {task.dueDateMemo && (
+                  {task.dueDate && task.dueDate !== dateString && (
+                    <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', fontWeight: 500}}>
+                      ⏰ {formatDateWithWeekday(task.dueDate)}{task.dueDateMemo ? ` ${task.dueDateMemo}` : ''}
+                    </div>
+                  )}
+                  {task.dueDateMemo && (!task.dueDate || task.dueDate === dateString) && (
                     <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', fontWeight: 500}}>
                       ⏰ {task.dueDateMemo}
                     </div>
