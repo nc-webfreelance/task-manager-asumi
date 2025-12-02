@@ -1806,16 +1806,24 @@
       const [selectedDate, setSelectedDate] = useState(null);
       const [selectedDateTasks, setSelectedDateTasks] = useState([]);
       const [editingMemo, setEditingMemo] = useState('');
+      const [originalMemo, setOriginalMemo] = useState('');
 
       const handleDateClick = (date, tasksForDate) => {
         setSelectedDate(date);
         setSelectedDateTasks(tasksForDate);
-        setEditingMemo(dateMemos[date] || '');
+        const memo = dateMemos[date] || '';
+        setEditingMemo(memo);
+        setOriginalMemo(memo);
       };
 
       const handleSaveMemo = () => {
-        onUpdateDateMemo(selectedDate, editingMemo);
+        if (editingMemo !== originalMemo) {
+          onUpdateDateMemo(selectedDate, editingMemo);
+          setOriginalMemo(editingMemo);
+        }
       };
+      
+      const hasMemoChanged = editingMemo !== originalMemo;
 
       // 選択された日付のカレンダー予定を取得
       const getEventsForDate = (date) => {
@@ -1864,8 +1872,8 @@
           <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} calendarEvents={calendarEvents} />
           <button className="btn-fab" onClick={onAddTask}><span style={{display: 'block', marginTop: '-1px'}}>+</span></button>
           {selectedDate && (
-            <div className="modal-overlay">
-              <div className="modal">
+            <div className="modal-overlay" onClick={() => { handleSaveMemo(); setSelectedDate(null); }}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-content">
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                     <h2 className="modal-title" style={{marginBottom: 0}}>{formatDateTitle(selectedDate)}</h2>
@@ -1873,6 +1881,7 @@
                       <button 
                         className="btn-primary" 
                         onClick={() => {
+                          handleSaveMemo();
                           setSelectedDate(null);
                           onAddTask(selectedDate);
                         }}
@@ -1880,8 +1889,42 @@
                       >
                         + タスク追加
                       </button>
-                      <button className="calendar-nav" onClick={() => setSelectedDate(null)}>✕</button>
+                      <button className="calendar-nav" onClick={() => { handleSaveMemo(); setSelectedDate(null); }}>✕</button>
                     </div>
+                  </div>
+                  
+                  {/* 日付メモ */}
+                  <div style={{marginBottom: '1.5rem'}}>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                        <span>📝</span>
+                        <span style={{fontWeight: 600, color: '#4a4a4a'}}>メモ</span>
+                      </div>
+                      {hasMemoChanged && (
+                        <button
+                          onClick={handleSaveMemo}
+                          className="btn-primary"
+                          style={{padding: '0.3rem 0.75rem', fontSize: '0.75rem'}}
+                        >
+                          保存
+                        </button>
+                      )}
+                    </div>
+                    <textarea
+                      value={editingMemo}
+                      onChange={(e) => setEditingMemo(e.target.value)}
+                      placeholder="この日のメモを入力..."
+                      style={{
+                        width: '100%',
+                        minHeight: '80px',
+                        padding: '0.75rem',
+                        border: hasMemoChanged ? '1px solid #ed8936' : '1px solid #e5e7eb',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.875rem',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                    />
                   </div>
                   
                   {/* Googleカレンダーの予定 */}
@@ -3512,22 +3555,29 @@
         const updated = { ...dateMemos };
         const trimmedMemo = memo.trim();
         
-        if (trimmedMemo) {
-          updated[date] = trimmedMemo;
-          // スプレッドシートに保存（既存の場合は更新、新規の場合は追加）
-          if (dateMemos[date]) {
-            await api.post('update', 'dateMemos', { date, memo: trimmedMemo });
+        try {
+          if (trimmedMemo) {
+            updated[date] = trimmedMemo;
+            // スプレッドシートに保存（既存の場合は更新、新規の場合は追加）
+            if (dateMemos[date]) {
+              await api.post('update', 'dateMemos', { date, memo: trimmedMemo });
+            } else {
+              await api.post('add', 'dateMemos', { date, memo: trimmedMemo });
+            }
           } else {
-            await api.post('add', 'dateMemos', { date, memo: trimmedMemo });
+            delete updated[date];
+            // スプレッドシートから削除
+            if (dateMemos[date]) {
+              await api.post('delete', 'dateMemos', { id: date });
+            }
           }
-        } else {
-          delete updated[date];
-          // スプレッドシートから削除
-          await api.post('delete', 'dateMemos', { id: date });
+          
+          setDateMemos(updated);
+          localStorage.setItem('dateMemos', JSON.stringify(updated));
+        } catch (error) {
+          console.error('メモ保存エラー:', error);
+          alert('メモの保存に失敗しました。再度お試しください。');
         }
-        
-        setDateMemos(updated);
-        localStorage.setItem('dateMemos', JSON.stringify(updated));
       };
 
       // Reservations state management with Google Sheets
