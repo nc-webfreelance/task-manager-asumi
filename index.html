@@ -34,7 +34,7 @@
     .btn-fab { position: fixed; bottom: 2rem; right: 2rem; width: 3.5rem; height: 3.5rem; background: #ed8936; color: white; border-radius: 50%; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(200,121,65,0.25); display: flex; align-items: center; justify-content: center; transition: background 0.2s; line-height: 1; padding: 0; text-align: center; }
     .btn-fab:hover { background: #dd6b20; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; }
-    .modal { background: white; border-radius: 0.5rem; box-shadow: 0 20px 25px rgba(0,0,0,0.1); max-width: 56rem; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal { background: white; border-radius: 0.5rem; box-shadow: 0 20px 25px rgba(0,0,0,0.1); width: 80%; max-height: 90vh; overflow-y: auto; }
     .modal-content { padding: 1.5rem; }
     .modal-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 1.5rem; color: #4a4a4a; }
     .form-group { margin-bottom: 1.25rem; }
@@ -506,8 +506,8 @@
       if (!isOpen) return null;
 
       return (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal" style={{width: '80%', maxWidth: '800px'}} onClick={(e) => e.stopPropagation()}>
             <div className="modal-content">
               <h2 className="modal-title">{task ? 'タスク編集' : 'タスク追加'}</h2>
               <form onSubmit={handleSubmit}>
@@ -1299,8 +1299,8 @@
           
           {/* Task Detail Modal */}
           {selectedTask && (
-            <div className="modal-overlay">
-              <div className="modal" style={{maxWidth: '600px'}}>
+            <div className="modal-overlay" onClick={() => setSelectedTask(null)}>
+              <div className="modal" style={{width: '80%', maxWidth: '800px'}} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-content">
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                     <h2 className="modal-title" style={{marginBottom: 0}}>タスク詳細</h2>
@@ -2447,8 +2447,8 @@
             </div>
 
             {(isAddingReservation || editingReservation) && (
-              <div className="modal-overlay">
-                <div className="modal" style={{ maxWidth: '600px' }}>
+              <div className="modal-overlay" onClick={handleCancel}>
+                <div className="modal" style={{ width: '80%', maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
                   <div className="modal-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                       <h2 className="modal-title" style={{ marginBottom: 0 }}>
