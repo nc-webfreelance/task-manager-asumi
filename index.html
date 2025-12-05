@@ -1474,7 +1474,7 @@
       return { ...holidays, ...addedHolidays };
     };
 
-    const CalendarCell = ({ date, tasks, viewMode, isCurrentMonth, onClick, dateMemos, calendarEvents = [] }) => {
+    const CalendarCell = ({ date, tasks, viewMode, isCurrentMonth, onClick, dateMemos, calendarEvents = [], manualEvents = [] }) => {
       // Use local date string to avoid timezone issues
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1504,8 +1504,14 @@
         }
       });
       
-      // この日のGoogleカレンダー予定を取得
-      const eventsForDate = calendarEvents.filter(event => event.date === dateString);
+      // この日のGoogleカレンダー予定 + 手動予定を取得
+      const googleEvents = calendarEvents.filter(event => event.date === dateString);
+      const manualEventsForDate = manualEvents.filter(event => event.date === dateString);
+      const eventsForDate = [...googleEvents, ...manualEventsForDate].sort((a, b) => {
+        const timeA = a.startTime || '00:00';
+        const timeB = b.startTime || '00:00';
+        return timeA.localeCompare(timeB);
+      });
       
       const today = new Date();
       const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -1642,7 +1648,7 @@
       );
     };
 
-    const Calendar = ({ tasks, viewMode, onDateClick, dateMemos, calendarEvents = [] }) => {
+    const Calendar = ({ tasks, viewMode, onDateClick, dateMemos, calendarEvents = [], manualEvents = [] }) => {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
       const year = currentDate.getFullYear();
@@ -1793,6 +1799,7 @@
                     onClick={() => handleDateClick(date)}
                     dateMemos={dateMemos}
                     calendarEvents={calendarEvents}
+                    manualEvents={manualEvents}
                   />
                 ))}
               </div>
@@ -1802,7 +1809,7 @@
       );
     };
 
-    const CalendarPage = ({ tasks, viewMode, onViewModeChange, onAddTask, onToggleComplete, onTaskClick, dateMemos, onUpdateDateMemo, calendarEvents = [] }) => {
+    const CalendarPage = ({ tasks, viewMode, onViewModeChange, onAddTask, onToggleComplete, onTaskClick, dateMemos, onUpdateDateMemo, calendarEvents = [], manualEvents = [], onAddManualEvent, onDeleteManualEvent }) => {
       const [selectedDate, setSelectedDate] = useState(null);
       const [selectedDateTasks, setSelectedDateTasks] = useState([]);
       const [editingMemo, setEditingMemo] = useState('');
@@ -1825,9 +1832,39 @@
       
       const hasMemoChanged = editingMemo !== originalMemo;
 
-      // 選択された日付のカレンダー予定を取得
+      // 選択された日付のカレンダー予定を取得（Google + 手動）
       const getEventsForDate = (date) => {
-        return calendarEvents.filter(event => event.date === date);
+        const googleEvents = calendarEvents.filter(event => event.date === date);
+        const manual = manualEvents.filter(event => event.date === date);
+        return [...googleEvents, ...manual].sort((a, b) => {
+          const timeA = a.startTime || '00:00';
+          const timeB = b.startTime || '00:00';
+          return timeA.localeCompare(timeB);
+        });
+      };
+      
+      // 選択された日付の手動予定のみ取得
+      const getManualEventsForDate = (date) => {
+        return manualEvents.filter(event => event.date === date);
+      };
+
+      // 手動予定追加用のstate
+      const [newEventTitle, setNewEventTitle] = useState('');
+      const [newEventStartTime, setNewEventStartTime] = useState('');
+      const [newEventEndTime, setNewEventEndTime] = useState('');
+
+      const handleAddManualEvent = () => {
+        if (!newEventTitle.trim()) return;
+        onAddManualEvent({
+          date: selectedDate,
+          title: newEventTitle.trim(),
+          startTime: newEventStartTime,
+          endTime: newEventEndTime,
+          isManual: true
+        });
+        setNewEventTitle('');
+        setNewEventStartTime('');
+        setNewEventEndTime('');
       };
 
       // 日付をフォーマット（例: 11/28 (金)）
@@ -1869,7 +1906,7 @@
               締切日で見る
             </button>
           </div>
-          <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} calendarEvents={calendarEvents} />
+          <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} calendarEvents={calendarEvents} manualEvents={manualEvents} />
           <button className="btn-fab" onClick={onAddTask}><span style={{display: 'block', marginTop: '-1px'}}>+</span></button>
           {selectedDate && (
             <div className="modal-overlay" onClick={() => { handleSaveMemo(); setSelectedDate(null); }}>
@@ -1927,13 +1964,14 @@
                     />
                   </div>
                   
-                  {/* Googleカレンダーの予定 */}
+                  {/* Googleカレンダーの予定 + 手動予定 */}
                   {(() => {
                     const eventsForDate = getEventsForDate(selectedDate);
-                    if (eventsForDate.length === 0) return null;
+                    const manualEventsForDate = getManualEventsForDate(selectedDate);
                     
-                    const copyGoogleCalendarEvents = () => {
-                      const header = `📆Googleカレンダー (${eventsForDate.length}件)`;
+                    const copyAllEvents = () => {
+                      if (eventsForDate.length === 0) return;
+                      const header = `📆予定 (${eventsForDate.length}件)`;
                       const items = eventsForDate.map(event => {
                         const time = event.startTime && event.endTime 
                           ? `${event.startTime}〜${event.endTime}` 
@@ -1956,49 +1994,135 @@
                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem'}}>
                           <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                             <span>📆</span>
-                            <span style={{fontWeight: 600, color: '#b45309'}}>Googleカレンダー ({eventsForDate.length}件)</span>
+                            <span style={{fontWeight: 600, color: '#b45309'}}>予定 ({eventsForDate.length}件)</span>
                           </div>
-                          <button
-                            onClick={copyGoogleCalendarEvents}
-                            style={{
-                              padding: '0.3rem 0.6rem',
-                              fontSize: '0.75rem',
-                              background: '#fff',
-                              border: '1px solid #ed8936',
-                              borderRadius: '0.25rem',
-                              color: '#b45309',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            コピー
-                          </button>
+                          {eventsForDate.length > 0 && (
+                            <button
+                              onClick={copyAllEvents}
+                              style={{
+                                padding: '0.3rem 0.6rem',
+                                fontSize: '0.75rem',
+                                background: '#fff',
+                                border: '1px solid #ed8936',
+                                borderRadius: '0.25rem',
+                                color: '#b45309',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              コピー
+                            </button>
+                          )}
                         </div>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                          {eventsForDate.map((event, index) => (
-                            <div key={index} style={{
-                              background: 'white',
-                              padding: '0.6rem 0.8rem',
-                              borderRadius: '0.375rem',
-                              borderLeft: '3px solid #ed8936',
-                              fontSize: '0.9rem'
-                            }}>
-                              <div style={{fontWeight: 500, color: '#1e293b'}}>
-                                {event.startTime && event.endTime ? (
-                                  <span style={{color: '#b45309', marginRight: '0.5rem'}}>
-                                    {event.startTime}~{event.endTime}
-                                  </span>
-                                ) : (
-                                  <span style={{color: '#b45309', marginRight: '0.5rem'}}>終日</span>
-                                )}
-                                {event.title}
-                              </div>
-                              {event.location && (
-                                <div style={{fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem'}}>
-                                  📍 {event.location}
+                        
+                        {/* 予定一覧 */}
+                        {eventsForDate.length > 0 && (
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem'}}>
+                            {eventsForDate.map((event, index) => (
+                              <div key={event.id || index} style={{
+                                background: 'white',
+                                padding: '0.6rem 0.8rem',
+                                borderRadius: '0.375rem',
+                                borderLeft: '3px solid #ed8936',
+                                fontSize: '0.9rem',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{fontWeight: 500, color: '#1e293b'}}>
+                                  {event.startTime && event.endTime ? (
+                                    <span style={{color: '#b45309', marginRight: '0.5rem'}}>
+                                      {event.startTime}~{event.endTime}
+                                    </span>
+                                  ) : (
+                                    <span style={{color: '#b45309', marginRight: '0.5rem'}}>終日</span>
+                                  )}
+                                  {event.title}
+                                  {event.location && (
+                                    <span style={{fontSize: '0.8rem', color: '#64748b', marginLeft: '0.5rem'}}>
+                                      📍 {event.location}
+                                    </span>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                                {event.isManual && (
+                                  <button
+                                    onClick={() => onDeleteManualEvent(event.id)}
+                                    style={{
+                                      padding: '0.2rem 0.4rem',
+                                      fontSize: '0.7rem',
+                                      background: 'transparent',
+                                      border: '1px solid #d1d5db',
+                                      borderRadius: '0.25rem',
+                                      color: '#9ca3af',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    削除
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* 手動追加フォーム */}
+                        <div style={{borderTop: eventsForDate.length > 0 ? '1px solid #ffe4c4' : 'none', paddingTop: eventsForDate.length > 0 ? '0.75rem' : 0}}>
+                          <div style={{fontSize: '0.8rem', color: '#b45309', marginBottom: '0.5rem', fontWeight: 500}}>+ 予定を追加</div>
+                          <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                            <input
+                              type="time"
+                              value={newEventStartTime}
+                              onChange={(e) => setNewEventStartTime(e.target.value)}
+                              style={{
+                                padding: '0.4rem',
+                                border: '1px solid #ffe4c4',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.85rem',
+                                width: '100px'
+                              }}
+                            />
+                            <span style={{alignSelf: 'center'}}>〜</span>
+                            <input
+                              type="time"
+                              value={newEventEndTime}
+                              onChange={(e) => setNewEventEndTime(e.target.value)}
+                              style={{
+                                padding: '0.4rem',
+                                border: '1px solid #ffe4c4',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.85rem',
+                                width: '100px'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={newEventTitle}
+                              onChange={(e) => setNewEventTitle(e.target.value)}
+                              placeholder="タイトル"
+                              style={{
+                                padding: '0.4rem 0.6rem',
+                                border: '1px solid #ffe4c4',
+                                borderRadius: '0.25rem',
+                                fontSize: '0.85rem',
+                                flex: 1,
+                                minWidth: '120px'
+                              }}
+                            />
+                            <button
+                              onClick={handleAddManualEvent}
+                              disabled={!newEventTitle.trim()}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                fontSize: '0.85rem',
+                                background: newEventTitle.trim() ? '#ed8936' : '#e5e7eb',
+                                border: 'none',
+                                borderRadius: '0.25rem',
+                                color: 'white',
+                                cursor: newEventTitle.trim() ? 'pointer' : 'not-allowed'
+                              }}
+                            >
+                              追加
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -3508,6 +3632,63 @@
       });
       const [isCalendarEventsLoading, setIsCalendarEventsLoading] = useState(true);
 
+      // 手動追加の予定 state
+      const [manualEvents, setManualEvents] = useState(() => {
+        try {
+          const saved = localStorage.getItem('manualEvents');
+          return saved ? JSON.parse(saved) : [];
+        } catch {
+          return [];
+        }
+      });
+      const [isManualEventsLoading, setIsManualEventsLoading] = useState(true);
+
+      // 手動予定をスプレッドシートから読み込み
+      useEffect(() => {
+        const loadManualEvents = async () => {
+          setIsManualEventsLoading(true);
+          try {
+            const remoteEvents = await api.get('manualEvents');
+            if (remoteEvents && remoteEvents.length > 0) {
+              setManualEvents(remoteEvents);
+              localStorage.setItem('manualEvents', JSON.stringify(remoteEvents));
+            }
+          } catch (error) {
+            console.error('Error loading manualEvents:', error);
+          }
+          setIsManualEventsLoading(false);
+        };
+        loadManualEvents();
+      }, []);
+
+      // 手動予定を追加
+      const addManualEvent = async (event) => {
+        const newEvent = {
+          id: Date.now().toString(),
+          ...event
+        };
+        const updated = [...manualEvents, newEvent];
+        setManualEvents(updated);
+        localStorage.setItem('manualEvents', JSON.stringify(updated));
+        try {
+          await api.post('add', 'manualEvents', newEvent);
+        } catch (error) {
+          console.error('Error adding manualEvent:', error);
+        }
+      };
+
+      // 手動予定を削除
+      const deleteManualEvent = async (id) => {
+        const updated = manualEvents.filter(e => e.id !== id);
+        setManualEvents(updated);
+        localStorage.setItem('manualEvents', JSON.stringify(updated));
+        try {
+          await api.post('delete', 'manualEvents', { id });
+        } catch (error) {
+          console.error('Error deleting manualEvent:', error);
+        }
+      };
+
       // カレンダー予定をスプレッドシートから読み込み
       useEffect(() => {
         const loadCalendarEvents = async () => {
@@ -3827,6 +4008,9 @@
                   dateMemos={dateMemos}
                   onUpdateDateMemo={updateDateMemo}
                   calendarEvents={calendarEvents}
+                  manualEvents={manualEvents}
+                  onAddManualEvent={addManualEvent}
+                  onDeleteManualEvent={deleteManualEvent}
                 />
               ) : activeTab === 'list' ? (
                 <TaskListPage
