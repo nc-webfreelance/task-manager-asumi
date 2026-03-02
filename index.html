@@ -412,6 +412,9 @@
         <button className={`tab ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => onTabChange('calendar')}>
           カレンダー
         </button>
+        <button className={`tab ${activeTab === 'googleTasks' ? 'active' : ''}`} onClick={() => onTabChange('googleTasks')}>
+          Googleタスク
+        </button>
         <button className={`tab ${activeTab === 'list' ? 'active' : ''}`} onClick={() => onTabChange('list')}>
           タスク一覧
         </button>
@@ -427,7 +430,7 @@
       </div>
     );
 
-    const TaskModal = ({ isOpen, onClose, onSave, onDelete, task, preselectedDate }) => {
+    const TaskModal = ({ isOpen, onClose, onSave, onDelete, task, preselectedDate, prefillData }) => {
       const [title, setTitle] = useState('');
       const [description, setDescription] = useState('');
       const [workDate, setWorkDate] = useState('');
@@ -458,21 +461,21 @@
           setTag(task.tag);
           setRemarks(task.remarks || task.memo || '');
         } else {
-          setTitle('');
-          setDescription('');
+          setTitle(prefillData?.title || '');
+          setDescription(prefillData?.description || '');
           setWorkDate(preselectedDate || '');
           setWorkDateEnd('');
           setWorkDateMemo('');
           setIsWorkDateUndecided(false);
-          setDueDate('');
+          setDueDate(prefillData?.dueDate || '');
           setDueDateMemo('');
           setPriority('');
           setTag('');
-          setRemarks('');
+          setRemarks(prefillData?.remarks || '');
         }
         setIsAddingNewTag(false);
         setNewTagInput('');
-      }, [task, isOpen, preselectedDate]);
+      }, [task, isOpen, preselectedDate, prefillData]);
 
       const handleAddNewTag = () => {
         if (newTagInput.trim()) {
@@ -485,7 +488,7 @@
       const handleSubmit = (e) => {
         e.preventDefault();
         // タイトルは任意（空でもOK）
-        onSave({
+        const saveData = {
           title: title.trim(),
           description: description.trim(),
           workDate,
@@ -499,7 +502,18 @@
           remarks: remarks.trim(),
           memo: remarks.trim(),
           isCompleted: task?.isCompleted || false,
-        });
+        };
+        // 新規追加でGoogleタスクIDがあれば紐づける
+        if (!task && prefillData?.googleTaskId) {
+          saveData.googleTaskId = prefillData.googleTaskId;
+        }
+        // 既存タスクにgoogleTaskIdがあれば保持、なければprefillDataから設定
+        if (task?.googleTaskId) {
+          saveData.googleTaskId = task.googleTaskId;
+        } else if (task && prefillData?.googleTaskId) {
+          saveData.googleTaskId = prefillData.googleTaskId;
+        }
+        onSave(saveData);
         onClose();
       };
 
@@ -1474,7 +1488,7 @@
       return { ...holidays, ...addedHolidays };
     };
 
-    const CalendarCell = ({ date, tasks, viewMode, isCurrentMonth, onClick, dateMemos, calendarEvents = [], manualEvents = [] }) => {
+    const CalendarCell = ({ date, tasks, viewMode, isCurrentMonth, onClick, dateMemos, calendarEvents = [], manualEvents = [], googleTasks = [] }) => {
       // Use local date string to avoid timezone issues
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1570,6 +1584,38 @@
             </div>
           )}
           
+          {/* Googleタスク表示（期日がこの日のもの） */}
+          {(() => {
+            const gtForDate = (googleTasks || []).filter(gt => {
+              if (!gt.due) return false;
+              return gt.due.split('T')[0] === dateString;
+            }).filter(gt => gt.status === 'needsAction');
+            if (gtForDate.length === 0) return null;
+            return (
+              <div style={{
+                fontSize: '0.7rem',
+                color: '#1a73e8',
+                background: '#e8f0fe',
+                padding: '0.2rem 0.3rem',
+                borderRadius: '0.25rem',
+                marginTop: '0.25rem',
+                marginBottom: '0.25rem',
+                lineHeight: '1.4',
+                wordBreak: 'break-word',
+                border: '1px solid #a8c7fa'
+              }}>
+                {gtForDate.slice(0, 3).map((gt, idx) => (
+                  <div key={idx} style={{marginBottom: idx < gtForDate.length - 1 && idx < 2 ? '0.2rem' : 0}}>
+                    ✅{gt.title}
+                  </div>
+                ))}
+                {gtForDate.length > 3 && (
+                  <div style={{color: '#9ca3af', marginTop: '0.2rem'}}>+{gtForDate.length - 3}件</div>
+                )}
+              </div>
+            );
+          })()}
+          
           {/* タスク表示 */}
           <div style={{marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: '1.3'}}>
             {tasksForDate.map(task => {
@@ -1630,12 +1676,12 @@
                       🗓 {task.workDateMemo}
                     </div>
                   )}
-                  {task.dueDate && task.dueDate !== dateString && (
-                    <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', fontWeight: 500}}>
-                      ⏰ {formatDateWithWeekday(task.dueDate)}{task.dueDateMemo ? ` ${task.dueDateMemo}` : ''}
+                  {task.dueDate && (
+                    <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', fontWeight: task.dueDate === dateString ? 700 : 500}}>
+                      ⏰ {task.dueDate === dateString ? '今日!!' : formatDateWithWeekday(task.dueDate)}{task.dueDateMemo ? ` ${task.dueDateMemo}` : ''}
                     </div>
                   )}
-                  {task.dueDateMemo && (!task.dueDate || task.dueDate === dateString) && (
+                  {task.dueDateMemo && !task.dueDate && (
                     <div style={{fontSize: '0.7rem', color: '#dc2626', marginTop: '0.1rem', fontWeight: 500}}>
                       ⏰ {task.dueDateMemo}
                     </div>
@@ -1648,7 +1694,7 @@
       );
     };
 
-    const Calendar = ({ tasks, viewMode, onDateClick, dateMemos, calendarEvents = [], manualEvents = [] }) => {
+    const Calendar = ({ tasks, viewMode, onDateClick, dateMemos, calendarEvents = [], manualEvents = [], googleTasks = [] }) => {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
       const year = currentDate.getFullYear();
@@ -1800,6 +1846,7 @@
                     dateMemos={dateMemos}
                     calendarEvents={calendarEvents}
                     manualEvents={manualEvents}
+                    googleTasks={googleTasks}
                   />
                 ))}
               </div>
@@ -1809,7 +1856,7 @@
       );
     };
 
-    const CalendarPage = ({ tasks, viewMode, onViewModeChange, onAddTask, onToggleComplete, onTaskClick, dateMemos, onUpdateDateMemo, calendarEvents = [], manualEvents = [], onAddManualEvent, onDeleteManualEvent }) => {
+    const CalendarPage = ({ tasks, viewMode, onViewModeChange, onAddTask, onToggleComplete, onTaskClick, dateMemos, onUpdateDateMemo, calendarEvents = [], manualEvents = [], onAddManualEvent, onDeleteManualEvent, googleTasks = [] }) => {
       const [selectedDate, setSelectedDate] = useState(null);
       const [selectedDateTasks, setSelectedDateTasks] = useState([]);
       const [editingMemo, setEditingMemo] = useState('');
@@ -1906,7 +1953,7 @@
               締切日で見る
             </button>
           </div>
-          <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} calendarEvents={calendarEvents} manualEvents={manualEvents} />
+          <Calendar tasks={tasks} viewMode={viewMode} onDateClick={handleDateClick} dateMemos={dateMemos} calendarEvents={calendarEvents} manualEvents={manualEvents} googleTasks={googleTasks} />
           <button className="btn-fab" onClick={onAddTask}><span style={{display: 'block', marginTop: '-1px'}}>+</span></button>
           {selectedDate && (
             <div className="modal-overlay" onClick={() => { handleSaveMemo(); setSelectedDate(null); }}>
@@ -3345,6 +3392,166 @@
       );
     };
 
+    // === Googleタスクページ（読み取り専用） ===
+    const GoogleTasksPage = ({ googleTasks, onAddTask, tasks = [] }) => {
+      const [filter, setFilter] = useState('needsAction');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const filteredTasks = useMemo(() => {
+        let filtered = googleTasks || [];
+        if (filter === 'needsAction') {
+          filtered = filtered.filter(t => t.status === 'needsAction');
+        } else if (filter === 'completed') {
+          filtered = filtered.filter(t => t.status === 'completed');
+        }
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          filtered = filtered.filter(t =>
+            (t.title || '').toLowerCase().includes(q) ||
+            (t.notes || '').toLowerCase().includes(q)
+          );
+        }
+        filtered.sort((a, b) => {
+          if (!a.due && !b.due) return 0;
+          if (!a.due) return 1;
+          if (!b.due) return -1;
+          return a.due.localeCompare(b.due);
+        });
+        return filtered;
+      }, [googleTasks, filter, searchQuery]);
+
+      const totalCount = (googleTasks || []).length;
+      const needsActionCount = (googleTasks || []).filter(t => t.status === 'needsAction').length;
+      const completedCount = (googleTasks || []).filter(t => t.status === 'completed').length;
+
+      const isOverdue = (due) => {
+        if (!due) return false;
+        const today = new Date(); today.setHours(0,0,0,0);
+        return new Date(due) < today;
+      };
+
+      const formatDue = (due) => {
+        if (!due) return '';
+        const d = new Date(due);
+        const weekdays = ['日','月','火','水','木','金','土'];
+        return `${d.getMonth()+1}/${d.getDate()}(${weekdays[d.getDay()]})`;
+      };
+
+      // アプリのタスクに作業日付きで追加済みかチェック
+      const hasWorkDate = (googleTask) => {
+        return tasks.some(t => {
+          if (t.isDeleted || !t.workDate) return false;
+          // googleTaskIdで紐づけ
+          if (t.googleTaskId && googleTask.id && t.googleTaskId === googleTask.id) return true;
+          // タイトル一致でも判定
+          if (t.title && googleTask.title && t.title.trim() === googleTask.title.trim()) return true;
+          return false;
+        });
+      };
+
+      return (
+        <div>
+          <input type="text" className="search-input" value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="タスクを検索..."
+          />
+
+          {/* フィルターボタン */}
+          <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1rem'}}>
+            <button
+              onClick={() => setFilter('needsAction')}
+              className={filter === 'needsAction' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              未完了 ({needsActionCount})
+            </button>
+            <button
+              onClick={() => setFilter('completed')}
+              className={filter === 'completed' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              完了済み ({completedCount})
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
+              style={{padding: '0.5rem 1rem', fontSize: '0.875rem'}}
+            >
+              すべて ({totalCount})
+            </button>
+          </div>
+
+          <div style={{fontSize:'0.75rem', color:'#9ca3af', marginBottom:'0.75rem', fontStyle:'italic'}}>
+            ※ タップするとタスクに追加できます（Googleタスクから自動同期・読み取り専用）
+          </div>
+
+          {filteredTasks.length === 0 ? (
+            <div style={{textAlign:'center', padding:'3rem 1rem', color:'#9ca3af'}}>
+              {filter === 'needsAction' ? '未完了のGoogleタスクはありません 🎉' :
+               filter === 'completed' ? '完了済みのGoogleタスクはありません' :
+               'Googleタスクがありません'}
+            </div>
+          ) : (
+            filteredTasks.map((task, index) => (
+              <div key={task.id || index} onClick={() => onAddTask(task)} style={{
+                padding:'0.75rem 1rem',
+                border:'1px solid #ffe4c4',
+                borderRadius:'0.75rem',
+                background: task.status === 'completed' ? '#faf9f7' : 'white',
+                marginBottom:'0.5rem',
+                opacity: task.status === 'completed' ? 0.6 : 1,
+                borderLeft: isOverdue(task.due) && task.status === 'needsAction'
+                  ? '4px solid #ff6b6b' : '4px solid #ed8936',
+                cursor:'pointer',
+                transition:'box-shadow 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 6px rgba(237,137,54,0.12)'}
+              onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+              >
+                <div style={{display:'flex', alignItems:'flex-start', gap:'0.75rem'}}>
+                  <span style={{fontSize:'1.1rem', marginTop:'0.1rem'}}>
+                    {task.status === 'completed' ? '☑️' : '⬜'}
+                  </span>
+                  <div style={{flex:1}}>
+                    <div style={{
+                      fontWeight:'600', fontSize:'0.95rem',
+                      color: task.status === 'completed' ? '#9ca3af' : '#4a4a4a',
+                      textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                    }}>
+                      {task.title || '(タイトルなし)'}
+                    </div>
+                    {task.notes && (
+                      <div style={{fontSize:'0.8rem', color:'#78716c', marginTop:'0.25rem', whiteSpace:'pre-wrap'}}>
+                        {task.notes}
+                      </div>
+                    )}
+                    <div style={{display:'flex', gap:'0.75rem', marginTop:'0.35rem', flexWrap:'wrap'}}>
+                      {task.due && (
+                        <span style={{
+                          fontSize:'0.75rem', padding:'0.15rem 0.5rem', borderRadius:'0.5rem',
+                          background: isOverdue(task.due) && task.status === 'needsAction' ? '#ffe8e8' : '#fff4e6',
+                          color: isOverdue(task.due) && task.status === 'needsAction' ? '#ff6b6b' : '#cc7a29',
+                        }}>
+                          📅 {formatDue(task.due)}
+                          {isOverdue(task.due) && task.status === 'needsAction' && ' (期限超過)'}
+                        </span>
+                      )}
+                      {task.updated && (
+                        <span style={{fontSize:'0.7rem', color:'#c4b5a4'}}>更新: {task.updated}</span>
+                      )}
+                    </div>
+                  </div>
+                  {hasWorkDate(task) && (
+                    <span style={{fontSize:'1.2rem', color:'#ed8936', flexShrink:0, marginTop:'0.1rem'}} title="作業日設定済み">✔︎</span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      );
+    };
+
     const DeletedTasksPage = ({ tasks, links, reservations, onRestoreTask, onPermanentDeleteTask, onDeleteAllTasks, onRestoreLink, onPermanentDeleteLink, onDeleteAllLinks, onRestoreReservation, onPermanentDeleteReservation, onDeleteAllReservations }) => {
       const deletedTasks = tasks.filter(task => task.isDeleted);
       const deletedLinks = links.filter(link => link.isDeleted);
@@ -3519,6 +3726,7 @@
       const [isModalOpen, setIsModalOpen] = useState(false);
       const [editingTask, setEditingTask] = useState(undefined);
       const [preselectedDate, setPreselectedDate] = useState(null);
+      const [prefillData, setPrefillData] = useState(null);
       
       // Links state management with Google Sheets
       const [links, setLinks] = useState([]);
@@ -3783,6 +3991,42 @@
         };
         loadReservations();
       }, []);
+
+      // Googleタスクの読み込み（読み取り専用）
+      const [googleTasks, setGoogleTasks] = useState([]);
+      useEffect(() => {
+        const loadGoogleTasks = async () => {
+          try {
+            const localGT = localStorage.getItem('googleTasks');
+            if (localGT) setGoogleTasks(JSON.parse(localGT));
+          } catch {}
+          const remoteGT = await api.get('googleTasks');
+          if (remoteGT.length > 0) {
+            setGoogleTasks(remoteGT);
+            localStorage.setItem('googleTasks', JSON.stringify(remoteGT));
+          }
+        };
+        loadGoogleTasks();
+      }, []);
+
+      // Googleタスクの変更をアプリタスクに自動追従
+      useEffect(() => {
+        if (googleTasks.length === 0 || tasks.length === 0) return;
+        tasks.forEach(task => {
+          if (!task.googleTaskId || task.isDeleted) return;
+          const gt = googleTasks.find(g => g.id === task.googleTaskId);
+          if (!gt) return;
+          const gtDue = gt.due ? gt.due.split('T')[0] : '';
+          const titleChanged = gt.title && gt.title !== task.title;
+          const dueChanged = gtDue !== (task.dueDate || '');
+          if (titleChanged || dueChanged) {
+            const updates = {};
+            if (titleChanged) updates.title = gt.title;
+            if (dueChanged) updates.dueDate = gtDue;
+            updateTask(task.id, updates);
+          }
+        });
+      }, [googleTasks]);
       
       // 予約が更新されたらローカルとスプレッドシートに保存
       const updateReservations = async (newReservations, action, data) => {
@@ -4011,6 +4255,7 @@
                   manualEvents={manualEvents}
                   onAddManualEvent={addManualEvent}
                   onDeleteManualEvent={deleteManualEvent}
+                  googleTasks={googleTasks}
                 />
               ) : activeTab === 'list' ? (
                 <TaskListPage
@@ -4023,6 +4268,31 @@
                 <ReservationsPage reservations={reservations} setReservations={setReservations} />
               ) : activeTab === 'links' ? (
                 <LinksPage links={links} setLinks={setLinks} />
+              ) : activeTab === 'googleTasks' ? (
+                <GoogleTasksPage googleTasks={googleTasks} tasks={tasks} onAddTask={(gt) => {
+                  // googleTaskIdまたはタイトルで既存タスクを検索
+                  const existingTask = tasks.find(t => {
+                    if (t.isDeleted) return false;
+                    if (t.googleTaskId && gt.id && t.googleTaskId === gt.id) return true;
+                    if (t.title && gt.title && t.title.trim() === gt.title.trim()) return true;
+                    return false;
+                  });
+                  if (existingTask) {
+                    setEditingTask(existingTask);
+                    // 既存タスクにgoogleTaskIdがなければ紐づけるためにprefillDataにセット
+                    setPrefillData(existingTask.googleTaskId ? null : { googleTaskId: gt.id || '' });
+                  } else {
+                    setPrefillData({
+                      title: gt.title || '',
+                      description: gt.notes || '',
+                      dueDate: gt.due ? gt.due.split('T')[0] : '',
+                      remarks: '',
+                      googleTaskId: gt.id || '',
+                    });
+                    setEditingTask(undefined);
+                  }
+                  setIsModalOpen(true);
+                }} />
               ) : (
                 <DeletedTasksPage
                   tasks={tasks}
@@ -4046,11 +4316,12 @@
             </main>
             <TaskModal
               isOpen={isModalOpen}
-              onClose={() => { setIsModalOpen(false); setEditingTask(undefined); setPreselectedDate(null); }}
+              onClose={() => { setIsModalOpen(false); setEditingTask(undefined); setPreselectedDate(null); setPrefillData(null); }}
               onSave={handleSaveTask}
               onDelete={editingTask ? handleDeleteTask : undefined}
               task={editingTask}
               preselectedDate={preselectedDate}
+              prefillData={prefillData}
             />
           </div>
         </div>
